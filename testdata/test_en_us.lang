@@ -1,0 +1,4 @@
+item.example_mod.example_item=Example Item
+block.example_mod.example_block=Example Block
+itemGroup.example_mod.creative_tab=Example Mod
+gui.example_mod.container.title=Example Container
