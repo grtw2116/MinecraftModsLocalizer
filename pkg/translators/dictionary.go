@@ -201,7 +201,7 @@ func showProgress(current, total int, startTime time.Time) {
 	}
 }
 
-func TranslateDataWithSimilarity(data parsers.TranslationData, translator Translator, targetLang string, similarityThreshold float64) (parsers.TranslationData, error) {
+func TranslateDataWithSimilarity(data parsers.TranslationData, translator Translator, targetLang string, similarityThreshold float64, batchSize int) (parsers.TranslationData, error) {
 	result := make(parsers.TranslationData)
 	total := len(data)
 	count := 0
@@ -218,40 +218,99 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 	fmt.Printf("Starting translation of %d items...\n", total)
 	showProgress(0, total, startTime)
 	
-	for key, value := range data {
-		count++
+	if batchSize > 1 {
+		// Batch processing mode
+		var pendingTexts []string
+		var pendingKeys []string
+		var pendingValues []string
 		
-		if dictTranslation, found := dict.GetTranslation(value, targetLang); found {
-			result[key] = dictTranslation
-		} else {
-			similarExamples := dict.FindSimilarExamples(value, targetLang, similarityThreshold, maxExamples)
+		for key, value := range data {
+			if dictTranslation, found := dict.GetTranslation(value, targetLang); found {
+				result[key] = dictTranslation
+				count++
+				showProgress(count, total, startTime)
+			} else {
+				pendingTexts = append(pendingTexts, value)
+				pendingKeys = append(pendingKeys, key)
+				pendingValues = append(pendingValues, value)
+			}
+		}
+		
+		if len(pendingTexts) > 0 {
+			if openaiTranslator, ok := translator.(*OpenAITranslator); ok {
+				batchResults, err := openaiTranslator.TranslateBatchWithSize(pendingTexts, targetLang, batchSize)
+				if err != nil {
+					return nil, fmt.Errorf("batch translation failed: %v", err)
+				}
+				
+				for i, batchResult := range batchResults {
+					if i < len(pendingKeys) {
+						key := pendingKeys[i]
+						if batchResult.IsValid {
+							result[key] = batchResult.Output
+							dict.AddTerm(pendingValues[i], targetLang, batchResult.Output)
+						} else {
+							fmt.Printf("\nWarning: Failed to translate '%s': %s\n", key, batchResult.Error)
+							result[key] = pendingValues[i]
+						}
+						count++
+						showProgress(count, total, startTime)
+					}
+				}
+			} else {
+				// Fallback to individual processing for non-OpenAI translators
+				for i, value := range pendingTexts {
+					translatedValue, err := translator.Translate(value, targetLang)
+					if err != nil {
+						fmt.Printf("\nWarning: Failed to translate '%s': %v\n", pendingKeys[i], err)
+						result[pendingKeys[i]] = value
+					} else {
+						result[pendingKeys[i]] = translatedValue
+						dict.AddTerm(value, targetLang, translatedValue)
+					}
+					count++
+					showProgress(count, total, startTime)
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+		}
+	} else {
+		// Individual processing mode (original behavior)
+		for key, value := range data {
+			count++
 			
-			var translatedValue string
-			var err error
-			
-			if len(similarExamples) > 0 {
-				if openaiTranslator, ok := translator.(*OpenAITranslator); ok {
-					translatedValue, err = openaiTranslator.TranslateWithExamples(value, targetLang, similarExamples)
+			if dictTranslation, found := dict.GetTranslation(value, targetLang); found {
+				result[key] = dictTranslation
+			} else {
+				similarExamples := dict.FindSimilarExamples(value, targetLang, similarityThreshold, maxExamples)
+				
+				var translatedValue string
+				var err error
+				
+				if len(similarExamples) > 0 {
+					if openaiTranslator, ok := translator.(*OpenAITranslator); ok {
+						translatedValue, err = openaiTranslator.TranslateWithExamples(value, targetLang, similarExamples)
+					} else {
+						translatedValue, err = translator.Translate(value, targetLang)
+					}
 				} else {
 					translatedValue, err = translator.Translate(value, targetLang)
 				}
-			} else {
-				translatedValue, err = translator.Translate(value, targetLang)
+				
+				if err != nil {
+					fmt.Printf("\nWarning: Failed to translate '%s': %v\n", key, err)
+					result[key] = value
+				} else {
+					result[key] = translatedValue
+					dict.AddTerm(value, targetLang, translatedValue)
+				}
+				
+				time.Sleep(100 * time.Millisecond)
 			}
 			
-			if err != nil {
-				fmt.Printf("\nWarning: Failed to translate '%s': %v\n", key, err)
-				result[key] = value
-			} else {
-				result[key] = translatedValue
-				dict.AddTerm(value, targetLang, translatedValue)
-			}
-			
-			time.Sleep(100 * time.Millisecond)
+			// Update progress bar
+			showProgress(count, total, startTime)
 		}
-		
-		// Update progress bar
-		showProgress(count, total, startTime)
 	}
 	
 	if err := dict.SaveToFile(dictPath); err != nil {

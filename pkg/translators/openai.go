@@ -68,6 +68,173 @@ func (t *OpenAITranslator) Translate(text, targetLang string) (string, error) {
 	return t.TranslateWithExamples(text, targetLang, nil)
 }
 
+func (t *OpenAITranslator) TranslateBatch(texts []string, targetLang string) ([]BatchTranslationResult, error) {
+	return t.TranslateBatchWithSize(texts, targetLang, 10)
+}
+
+func (t *OpenAITranslator) TranslateBatchWithSize(texts []string, targetLang string, batchSize int) ([]BatchTranslationResult, error) {
+	if t.APIKey == "" {
+		return nil, fmt.Errorf("API key not found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")
+	}
+
+	if batchSize <= 0 {
+		batchSize = 1
+	}
+
+	var results []BatchTranslationResult
+	
+	for len(texts) > 0 {
+		currentBatchSize := batchSize
+		if len(texts) < currentBatchSize {
+			currentBatchSize = len(texts)
+		}
+		
+		batch := texts[:currentBatchSize]
+		texts = texts[currentBatchSize:]
+		
+		batchResults, err := t.translateBatchChunk(batch, targetLang)
+		if err != nil {
+			for _, text := range batch {
+				results = append(results, BatchTranslationResult{
+					Input:   text,
+					Output:  text,
+					IsValid: false,
+					Error:   err.Error(),
+				})
+			}
+			continue
+		}
+		
+		results = append(results, batchResults...)
+	}
+	
+	originalTexts := make([]string, len(results))
+	for i, result := range results {
+		originalTexts[i] = result.Input
+	}
+	validation := ValidateBatchResults(originalTexts, results)
+	if !validation.IsValid {
+		for _, missingInput := range validation.MissingInputs {
+			singleResult, err := t.Translate(missingInput, targetLang)
+			if err != nil {
+				results = append(results, BatchTranslationResult{
+					Input:   missingInput,
+					Output:  missingInput,
+					IsValid: false,
+					Error:   err.Error(),
+				})
+			} else {
+				results = append(results, BatchTranslationResult{
+					Input:   missingInput,
+					Output:  singleResult,
+					IsValid: true,
+				})
+			}
+		}
+	}
+	
+	return results, nil
+}
+
+func (t *OpenAITranslator) translateBatchChunk(texts []string, targetLang string) ([]BatchTranslationResult, error) {
+	var textList strings.Builder
+	for i, text := range texts {
+		textList.WriteString(fmt.Sprintf("%d. %s\n", i+1, text))
+	}
+	
+	prompt := fmt.Sprintf(`Translate the following Minecraft mod texts from English to %s. Keep translations natural and appropriate for gaming context.
+
+Please respond with ONLY the translated texts in the same numbered format:
+
+%s
+
+Return the translations in the exact same numbered format (1., 2., etc.), one per line.`, getLanguageName(targetLang), textList.String())
+
+	reqBody := OpenAIRequest{
+		Model: t.Model,
+		Messages: []Message{
+			{Role: "user", Content: prompt},
+		},
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", t.BaseURL+"/chat/completions", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+t.APIKey)
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var openaiResp OpenAIResponse
+	if err := json.Unmarshal(body, &openaiResp); err != nil {
+		return nil, err
+	}
+
+	if openaiResp.Error != nil {
+		return nil, fmt.Errorf("OpenAI API error: %s", openaiResp.Error.Message)
+	}
+
+	if len(openaiResp.Choices) == 0 {
+		return nil, fmt.Errorf("no translation received")
+	}
+
+	return t.parseBatchResponse(texts, strings.TrimSpace(openaiResp.Choices[0].Message.Content))
+}
+
+func (t *OpenAITranslator) parseBatchResponse(inputs []string, response string) ([]BatchTranslationResult, error) {
+	lines := strings.Split(response, "\n")
+	var results []BatchTranslationResult
+	
+	for i, input := range inputs {
+		var output string
+		var isValid bool
+		var errorMsg string
+		
+		if i < len(lines) {
+			line := strings.TrimSpace(lines[i])
+			numberPrefix := fmt.Sprintf("%d.", i+1)
+			if strings.HasPrefix(line, numberPrefix) {
+				output = strings.TrimSpace(line[len(numberPrefix):])
+				isValid = output != "" && output != input
+			} else {
+				output = input
+				isValid = false
+				errorMsg = "Failed to parse translation from response"
+			}
+		} else {
+			output = input
+			isValid = false
+			errorMsg = "Missing translation in response"
+		}
+		
+		results = append(results, BatchTranslationResult{
+			Input:   input,
+			Output:  output,
+			IsValid: isValid,
+			Error:   errorMsg,
+		})
+	}
+	
+	return results, nil
+}
+
 func (t *OpenAITranslator) TranslateWithExamples(text, targetLang string, examples []SimilarityMatch) (string, error) {
 	if t.APIKey == "" {
 		return "", fmt.Errorf("API key not found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")

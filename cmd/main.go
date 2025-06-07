@@ -19,6 +19,7 @@ var (
 	similarityThreshold = flag.Float64("similarity", 0.6, "Similarity threshold for finding similar examples (0.0-1.0, default: 0.6)")
 	extractOnly         = flag.Bool("extract-only", false, "Extract language files from JAR without translating")
 	resourcePack        = flag.Bool("resource-pack", false, "Generate resource pack format output")
+	batchSize           = flag.Int("batch-size", 1, "Number of texts to translate per API request (default: 1 for individual processing, 10+ for batch processing)")
 	help                = flag.Bool("help", false, "Show help")
 )
 
@@ -42,7 +43,7 @@ func main() {
 
 	// Check if input is a JAR file
 	if processors.IsJARFile(*inputFile) {
-		if err := processors.ProcessJARFile(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *resourcePack, *similarityThreshold); err != nil {
+		if err := processors.ProcessJARFile(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *resourcePack, *similarityThreshold, *batchSize); err != nil {
 			fmt.Fprintf(os.Stderr, "Error processing JAR file: %v\n", err)
 			os.Exit(1)
 		}
@@ -51,7 +52,7 @@ func main() {
 
 	// Check if input is a BetterQuesting file
 	if parsers.IsBetterQuestingFile(*inputFile) {
-		if err := processors.ProcessBetterQuestingFile(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *similarityThreshold); err != nil {
+		if err := processors.ProcessBetterQuestingFile(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *similarityThreshold, *batchSize); err != nil {
 			fmt.Fprintf(os.Stderr, "Error processing BetterQuesting file: %v\n", err)
 			os.Exit(1)
 		}
@@ -60,7 +61,7 @@ func main() {
 
 	// Check if input is a directory (potential Minecraft instance)
 	if fileInfo, err := os.Stat(*inputFile); err == nil && fileInfo.IsDir() {
-		if err := processors.ProcessMinecraftInstance(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *resourcePack, *similarityThreshold); err != nil {
+		if err := processors.ProcessMinecraftInstance(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *resourcePack, *similarityThreshold, *batchSize); err != nil {
 			fmt.Fprintf(os.Stderr, "Error processing Minecraft instance: %v\n", err)
 			os.Exit(1)
 		}
@@ -102,8 +103,8 @@ func main() {
 	}
 
 	// Perform translation
-	fmt.Printf("Starting translation with %s engine (similarity threshold: %.1f)...\n", *engine, *similarityThreshold)
-	translatedData, err := translators.TranslateDataWithSimilarity(data, translator, *targetLang, *similarityThreshold)
+	fmt.Printf("Starting translation with %s engine (similarity threshold: %.1f, batch size: %d)...\n", *engine, *similarityThreshold, *batchSize)
+	translatedData, err := translators.TranslateDataWithSimilarity(data, translator, *targetLang, *similarityThreshold, *batchSize)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error during translation: %v\n", err)
 		os.Exit(1)
