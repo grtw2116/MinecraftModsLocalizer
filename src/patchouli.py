@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 from typing import Union
 
-from init import MODS_DIR
+from init import get_mods_dir
 from prepare import prepare_translation
 from provider import provide_log_directory
 from mod import get_mod_name_from_jar
@@ -14,9 +14,10 @@ from mod import get_mod_name_from_jar
 
 def translate_patchouli() -> None:
     """Translate all Patchouli guidebooks in mod jar files."""
-    for filename in os.listdir(MODS_DIR):
+    mods_dir = get_mods_dir()
+    for filename in os.listdir(mods_dir):
         if filename.endswith('.jar'):
-            process_jar_file(os.path.join(MODS_DIR, filename))
+            process_jar_file(os.path.join(mods_dir, filename))
 
 
 def process_jar_file(jar_path: Union[str, Path]) -> None:

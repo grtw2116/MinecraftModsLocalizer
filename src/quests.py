@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Union
 
-from init import FTBQUESTS_DIR1, FTBQUESTS_DIR2, FTBQUESTS_DIR3, FTBQUESTS_DIR4, BETTERQUESTING_DIR
+from init import get_ftbquests_dir1, get_ftbquests_dir2, get_ftbquests_dir3, get_ftbquests_dir4, get_betterquesting_dir
 from provider import provide_log_directory
 from prepare import extract_map_from_lang, extract_map_from_json, prepare_translation
 
@@ -21,7 +21,8 @@ def translate_betterquesting_from_json(file_path: Union[str, Path]) -> None:
 
     untranslated_items = {lang_key: original for lang_key, original in targets.items() if original not in translated_map}
 
-    with open(os.path.join(BETTERQUESTING_DIR / 'ja_jp.lang'), 'w', encoding="utf-8") as f:
+    betterquesting_dir = get_betterquesting_dir()
+    with open(os.path.join(betterquesting_dir / 'ja_jp.lang'), 'w', encoding="utf-8") as f:
         # 翻訳された項目の書き込み
         for lang_key, translated in translated_targets.items():
             f.write(f'{lang_key}={translated}\n')
@@ -40,9 +41,12 @@ def translate_ftbquests_from_json(file_path: Union[str, Path]) -> None:
 
     untranslated_items = {json_key: original for json_key, original in targets.items() if original not in translated_map}
 
-    with open(os.path.join(FTBQUESTS_DIR1 / 'ja_jp.json'), 'w', encoding="utf-8") as f:
+    ftbquests_dir1 = get_ftbquests_dir1()
+    ftbquests_dir2 = get_ftbquests_dir2()
+    
+    with open(os.path.join(ftbquests_dir1 / 'ja_jp.json'), 'w', encoding="utf-8") as f:
         json.dump(dict(sorted(translated_targets.items())), f, ensure_ascii=False, indent=4)
-    with open(os.path.join(FTBQUESTS_DIR2 / 'ja_jp.json'), 'w', encoding="utf-8") as f:
+    with open(os.path.join(ftbquests_dir2 / 'ja_jp.json'), 'w', encoding="utf-8") as f:
         json.dump(dict(sorted(translated_targets.items())), f, ensure_ascii=False, indent=4)
 
     error_directory = os.path.join(provide_log_directory(), 'error')
@@ -97,20 +101,24 @@ def translate_ftbquests() -> None:
     backup_directory = provide_log_directory() / 'quests'
     backup_directory.mkdir(parents=True, exist_ok=True)
 
+    ftbquests_dir1 = get_ftbquests_dir1()
+    ftbquests_dir3 = get_ftbquests_dir3()
+    ftbquests_dir4 = get_ftbquests_dir4()
+
     logging.info("translating snbt files...")
-    json_path = os.path.join(FTBQUESTS_DIR1, 'en_us.json')
+    json_path = os.path.join(ftbquests_dir1, 'en_us.json')
 
     if os.path.exists(json_path):
-        logging.info(f"en_us.json found in {FTBQUESTS_DIR1}, translating from json...")
+        logging.info(f"en_us.json found in {ftbquests_dir1}, translating from json...")
         shutil.copy(json_path, backup_directory)
         translate_ftbquests_from_json(json_path)
     else:
-        logging.info(f"en_us.json not found in {FTBQUESTS_DIR1}, translating snbt files in directory...")
-        nbt_files = list(FTBQUESTS_DIR3.glob('*.snbt'))
+        logging.info(f"en_us.json not found in {ftbquests_dir1}, translating snbt files in directory...")
+        nbt_files = list(ftbquests_dir3.glob('*.snbt'))
 
-        backup_file = backup_directory / FTBQUESTS_DIR4.name
-        shutil.copy(FTBQUESTS_DIR4, backup_file)
-        translate_ftbquests_from_snbt(FTBQUESTS_DIR4)
+        backup_file = backup_directory / ftbquests_dir4.name
+        shutil.copy(ftbquests_dir4, backup_file)
+        translate_ftbquests_from_snbt(ftbquests_dir4)
 
         for file in nbt_files:
             backup_file = backup_directory / file.name
@@ -125,15 +133,17 @@ def translate_betterquesting() -> None:
     backup_directory = provide_log_directory() / 'quests'
     backup_directory.mkdir(parents=True, exist_ok=True)
 
+    betterquesting_dir = get_betterquesting_dir()
+
     logging.info("translating snbt files...")
-    json_path = os.path.join(BETTERQUESTING_DIR, 'en_us.lang')
+    json_path = os.path.join(betterquesting_dir, 'en_us.lang')
 
     if os.path.exists(json_path):
-        logging.info(f"en_us.json found in {BETTERQUESTING_DIR}, translating from json...")
+        logging.info(f"en_us.json found in {betterquesting_dir}, translating from json...")
         shutil.copy(json_path, backup_directory)
         translate_betterquesting_from_json(json_path)
     else:
-        logging.error(f"en_us.json not found in {BETTERQUESTING_DIR}.")
+        logging.error(f"en_us.json not found in {betterquesting_dir}.")
 
     logging.info("Translate snbt files Done!")
 

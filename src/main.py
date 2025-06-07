@@ -3,7 +3,7 @@ from pathlib import Path
 import logging
 from datetime import datetime
 
-from provider import set_api_key, set_chunk_size, provide_chunk_size, set_model, provide_model, set_prompt, provide_prompt, set_log_directory, get_config
+from provider import set_api_key, set_chunk_size, provide_chunk_size, set_model, provide_model, set_prompt, provide_prompt, set_log_directory, get_config, set_minecraft_directory, provide_minecraft_directory
 from mod import translate_from_jar
 from quests import translate_ftbquests, translate_betterquesting
 from patchouli import translate_patchouli
@@ -14,6 +14,8 @@ from update import check_version
 if __name__ == '__main__':
     # レイアウトの定義
     layout = [
+        [sg.Text("Minecraft Instance Directory")],
+        [sg.InputText(key='MINECRAFT_DIR', default_text=provide_minecraft_directory() or '', expand_x=True), sg.FolderBrowse("Browse", target='MINECRAFT_DIR')],
         [sg.Text("Translate Target")],
         [sg.Radio('Mod', key='target1', group_id=1, default=True), sg.Radio('FtbQuests', key='target2', group_id=1), sg.Radio(
             'BetterQuesting', key='target3', group_id=1), sg.Radio('Patchouli', key='target4', group_id=1)],
@@ -59,6 +61,12 @@ if __name__ == '__main__':
         # 送信ボタンが押された場合
         if event == 'translate':
             # 入力された値を取得
+            minecraft_dir = values['MINECRAFT_DIR'].strip()
+            if not minecraft_dir:
+                sg.popup('Minecraftインスタンスディレクトリを選択してください')
+                continue
+            
+            set_minecraft_directory(minecraft_dir)
             set_api_key(values['OPENAI_API_KEY'])
             set_chunk_size(int(values['CHUNK_SIZE']))
             set_model(values['MODEL'])

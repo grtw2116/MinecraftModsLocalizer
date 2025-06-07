@@ -5,7 +5,7 @@ import zipfile
 from pathlib import Path
 from typing import Dict, Optional, Union
 
-from init import RESOURCE_DIR, MODS_DIR
+from init import get_resource_dir, get_mods_dir
 from prepare import extract_map_from_json, prepare_translation
 from provider import provide_log_directory
 
@@ -36,21 +36,24 @@ def process_jar_file(jar_path: Union[str, Path]) -> Dict[str, str]:
 
 
 def translate_from_jar() -> None:
-    if not os.path.exists(RESOURCE_DIR):
-        os.makedirs(os.path.join(RESOURCE_DIR, 'assets', 'japanese', 'lang'))
+    resource_dir = get_resource_dir()
+    mods_dir = get_mods_dir()
+    
+    if not os.path.exists(resource_dir):
+        os.makedirs(os.path.join(resource_dir, 'assets', 'japanese', 'lang'))
 
     targets = {}
 
     extracted_pack_mcmeta = False
-    for filename in os.listdir(MODS_DIR):
+    for filename in os.listdir(mods_dir):
         if filename.endswith('.jar'):
             # Extract pack.mcmeta if it exists in the jar
             if not extracted_pack_mcmeta:
-                extracted_pack_mcmeta = extract_specific_file(os.path.join(MODS_DIR, filename), 'pack.mcmeta',
-                                                              RESOURCE_DIR)
-                update_resourcepack_description(os.path.join(RESOURCE_DIR, 'pack.mcmeta'), '日本語化パック')
+                extracted_pack_mcmeta = extract_specific_file(os.path.join(mods_dir, filename), 'pack.mcmeta',
+                                                              resource_dir)
+                update_resourcepack_description(os.path.join(resource_dir, 'pack.mcmeta'), '日本語化パック')
 
-            targets.update(process_jar_file(os.path.join(MODS_DIR, filename)))
+            targets.update(process_jar_file(os.path.join(mods_dir, filename)))
 
     translated_map = prepare_translation(list(targets.values()))
 
@@ -60,7 +63,7 @@ def translate_from_jar() -> None:
     untranslated_items = {json_key: original for json_key, original in targets.items() if
                           original not in translated_map}
 
-    with open(os.path.join(RESOURCE_DIR, 'assets', 'japanese', 'lang', 'ja_jp.json'), 'w', encoding="utf-8") as f:
+    with open(os.path.join(resource_dir, 'assets', 'japanese', 'lang', 'ja_jp.json'), 'w', encoding="utf-8") as f:
         json.dump(dict(sorted(translated_targets.items())), f, ensure_ascii=False, indent=4)
 
     error_directory = os.path.join(provide_log_directory(), 'error')

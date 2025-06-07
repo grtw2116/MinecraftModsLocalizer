@@ -9,6 +9,7 @@ class TranslationConfig:
     chunk_size: int = 1
     model: str = 'gpt-4o-mini-2024-07-18'
     log_directory: Optional[str] = None
+    minecraft_directory: Optional[str] = None
     _prompt: Optional[str] = None
     
     @property
@@ -148,6 +149,16 @@ def provide_log_directory() -> Optional[str]:
 def set_log_directory(log_directory: str) -> None:
     """Set the log directory."""
     _config_manager.config.log_directory = log_directory
+
+
+def provide_minecraft_directory() -> Optional[str]:
+    """Get the current minecraft directory."""
+    return _config_manager.config.minecraft_directory
+
+
+def set_minecraft_directory(minecraft_directory: str) -> None:
+    """Set the minecraft directory."""
+    _config_manager.config.minecraft_directory = minecraft_directory
 
 
 def get_config() -> TranslationConfig:
