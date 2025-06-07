@@ -188,28 +188,19 @@ func ExtractBetterQuestingTranslations(bqFile *BetterQuestingFile) TranslationDa
 	// Extract quest translations
 	if bqFile.QuestDatabase != nil {
 		for questID, quest := range bqFile.QuestDatabase {
-			if quest.Name != "" {
-				key := fmt.Sprintf("quest.%s.name", questID)
-				translations[key] = quest.Name
-			}
-			if quest.Description != "" {
-				key := fmt.Sprintf("quest.%s.description", questID)
-				translations[key] = quest.Description
-			}
-			
-			// Extract from properties if available
+			// Only extract from properties (the authoritative source for BetterQuesting)
 			if quest.Properties != nil {
 				bqData := quest.Properties.GetBetterQuestingData()
 				if bqData != nil {
 					// Check for standard format name/desc
 					if name, exists := bqData["name"]; exists {
-						if nameStr, ok := name.(string); ok && nameStr != "" {
+						if nameStr, ok := name.(string); ok && nameStr != "" && isTranslatableText(nameStr) {
 							key := fmt.Sprintf("quest.%s.name", questID)
 							translations[key] = nameStr
 						}
 					}
 					if desc, exists := bqData["desc"]; exists {
-						if descStr, ok := desc.(string); ok && descStr != "" {
+						if descStr, ok := desc.(string); ok && descStr != "" && isTranslatableText(descStr) {
 							key := fmt.Sprintf("quest.%s.description", questID)
 							translations[key] = descStr
 						}
@@ -217,13 +208,13 @@ func ExtractBetterQuestingTranslations(bqFile *BetterQuestingFile) TranslationDa
 					
 					// Check for NBT format name/desc
 					if name, exists := bqData["name:8"]; exists {
-						if nameStr, ok := name.(string); ok && nameStr != "" {
+						if nameStr, ok := name.(string); ok && nameStr != "" && isTranslatableText(nameStr) {
 							key := fmt.Sprintf("quest.%s.name", questID)
 							translations[key] = nameStr
 						}
 					}
 					if desc, exists := bqData["desc:8"]; exists {
-						if descStr, ok := desc.(string); ok && descStr != "" {
+						if descStr, ok := desc.(string); ok && descStr != "" && isTranslatableText(descStr) {
 							key := fmt.Sprintf("quest.%s.description", questID)
 							translations[key] = descStr
 						}
@@ -231,16 +222,25 @@ func ExtractBetterQuestingTranslations(bqFile *BetterQuestingFile) TranslationDa
 				}
 			}
 			
-			// Extract task translations
-			if quest.Tasks != nil {
-				for taskID, task := range quest.Tasks {
-					if task.Name != "" {
-						key := fmt.Sprintf("quest.%s.task.%s.name", questID, taskID)
-						translations[key] = task.Name
-					}
-					if task.Description != "" {
-						key := fmt.Sprintf("quest.%s.task.%s.description", questID, taskID)
-						translations[key] = task.Description
+			// Extract reward translations (user-facing messages)
+			if quest.Rewards != nil {
+				for rewardID, reward := range quest.Rewards {
+					// Extract from raw reward data to handle NBT format
+					if rewardData, ok := interface{}(reward).(map[string]interface{}); ok {
+						// Check for description in rewards
+						if desc, exists := rewardData["description:8"]; exists {
+							if descStr, ok := desc.(string); ok && descStr != "" && isTranslatableText(descStr) {
+								key := fmt.Sprintf("quest.%s.reward.%s.description", questID, rewardID)
+								translations[key] = descStr
+							}
+						}
+						// Check for command messages (often contain player-visible text)
+						if cmd, exists := rewardData["command:8"]; exists {
+							if cmdStr, ok := cmd.(string); ok && cmdStr != "" && isPlayerMessage(cmdStr) {
+								key := fmt.Sprintf("quest.%s.reward.%s.command", questID, rewardID)
+								translations[key] = cmdStr
+							}
+						}
 					}
 				}
 			}
@@ -250,11 +250,11 @@ func ExtractBetterQuestingTranslations(bqFile *BetterQuestingFile) TranslationDa
 	// Extract quest line translations
 	if bqFile.QuestLines != nil {
 		for lineID, questLine := range bqFile.QuestLines {
-			if questLine.Name != "" {
+			if questLine.Name != "" && isTranslatableText(questLine.Name) {
 				key := fmt.Sprintf("questline.%s.name", lineID)
 				translations[key] = questLine.Name
 			}
-			if questLine.Description != "" {
+			if questLine.Description != "" && isTranslatableText(questLine.Description) {
 				key := fmt.Sprintf("questline.%s.description", lineID)
 				translations[key] = questLine.Description
 			}
@@ -264,15 +264,61 @@ func ExtractBetterQuestingTranslations(bqFile *BetterQuestingFile) TranslationDa
 	return translations
 }
 
+// isTranslatableText checks if a string should be translated
+func isTranslatableText(text string) bool {
+	if text == "" {
+		return false
+	}
+	
+	// Exclude technical identifiers, IDs, and configuration values
+	excludePatterns := []string{
+		`^[a-z_]+:[a-z_]+$`,              // Minecraft resource identifiers (e.g., "minecraft:stone")
+		`^[A-Z_][A-Z_0-9]*$`,             // Constants/enum values (e.g., "ALWAYS", "AND")
+		`^[a-z]+\.[a-z.]+$`,              // Translation keys (e.g., "bq_standard.reward.command")
+		`^(true|false)$`,                 // Boolean strings
+		`^\d+$`,                          // Pure numbers
+		`^[a-f0-9\-]{36}$`,              // UUIDs
+		`^#[a-fA-F0-9]{6,8}$`,           // Color codes
+	}
+	
+	for _, pattern := range excludePatterns {
+		if matched, _ := regexp.MatchString(pattern, strings.TrimSpace(text)); matched {
+			return false
+		}
+	}
+	
+	return true
+}
+
+// isPlayerMessage checks if a command string contains player-visible messages
+func isPlayerMessage(cmd string) bool {
+	if cmd == "" {
+		return false
+	}
+	
+	// Check if command contains player-visible messages (like /say, /tell, etc.)
+	playerMessagePatterns := []string{
+		`/say\s+.+`,      // /say commands
+		`/tell\s+.+`,     // /tell commands
+		`/title\s+.+`,    // /title commands
+	}
+	
+	for _, pattern := range playerMessagePatterns {
+		if matched, _ := regexp.MatchString(pattern, cmd); matched {
+			return true
+		}
+	}
+	
+	return false
+}
+
 func ApplyBetterQuestingTranslations(bqFile *BetterQuestingFile, translations TranslationData) {
 	// Apply quest translations
 	if bqFile.QuestDatabase != nil {
 		for questID, quest := range bqFile.QuestDatabase {
 			nameKey := fmt.Sprintf("quest.%s.name", questID)
 			if translated, exists := translations[nameKey]; exists {
-				quest.Name = translated
-				
-				// Also apply to properties if they exist
+				// Apply to properties (the authoritative source)
 				if quest.Properties != nil {
 					bqData := quest.Properties.GetBetterQuestingData()
 					if bqData != nil {
@@ -290,9 +336,7 @@ func ApplyBetterQuestingTranslations(bqFile *BetterQuestingFile, translations Tr
 			
 			descKey := fmt.Sprintf("quest.%s.description", questID)
 			if translated, exists := translations[descKey]; exists {
-				quest.Description = translated
-				
-				// Also apply to properties if they exist
+				// Apply to properties (the authoritative source)
 				if quest.Properties != nil {
 					bqData := quest.Properties.GetBetterQuestingData()
 					if bqData != nil {
@@ -308,17 +352,27 @@ func ApplyBetterQuestingTranslations(bqFile *BetterQuestingFile, translations Tr
 				}
 			}
 			
-			// Apply task translations
-			if quest.Tasks != nil {
-				for taskID, task := range quest.Tasks {
-					taskNameKey := fmt.Sprintf("quest.%s.task.%s.name", questID, taskID)
-					if translated, exists := translations[taskNameKey]; exists {
-						task.Name = translated
+			// Apply reward translations
+			if quest.Rewards != nil {
+				for rewardID, reward := range quest.Rewards {
+					// Apply reward description translations
+					rewardDescKey := fmt.Sprintf("quest.%s.reward.%s.description", questID, rewardID)
+					if translated, exists := translations[rewardDescKey]; exists {
+						if rewardData, ok := interface{}(reward).(map[string]interface{}); ok {
+							if _, exists := rewardData["description:8"]; exists {
+								rewardData["description:8"] = translated
+							}
+						}
 					}
 					
-					taskDescKey := fmt.Sprintf("quest.%s.task.%s.description", questID, taskID)
-					if translated, exists := translations[taskDescKey]; exists {
-						task.Description = translated
+					// Apply reward command translations
+					rewardCmdKey := fmt.Sprintf("quest.%s.reward.%s.command", questID, rewardID)
+					if translated, exists := translations[rewardCmdKey]; exists {
+						if rewardData, ok := interface{}(reward).(map[string]interface{}); ok {
+							if _, exists := rewardData["command:8"]; exists {
+								rewardData["command:8"] = translated
+							}
+						}
 					}
 				}
 			}
@@ -440,13 +494,13 @@ func ExtractNBTBetterQuestingTranslations(filename string) (TranslationData, err
 					if bqSection != nil {
 						// Extract name and description
 						if name, exists := bqSection["name:8"]; exists {
-							if nameStr, ok := name.(string); ok && nameStr != "" {
+							if nameStr, ok := name.(string); ok && nameStr != "" && isTranslatableText(nameStr) {
 								key := fmt.Sprintf("quest.%s.name", questID)
 								translations[key] = nameStr
 							}
 						}
 						if desc, exists := bqSection["desc:8"]; exists {
-							if descStr, ok := desc.(string); ok && descStr != "" {
+							if descStr, ok := desc.(string); ok && descStr != "" && isTranslatableText(descStr) {
 								key := fmt.Sprintf("quest.%s.description", questID)
 								translations[key] = descStr
 							}
