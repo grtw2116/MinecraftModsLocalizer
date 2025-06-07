@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -153,10 +154,58 @@ func (td *TermDictionary) FindSimilarExamples(text, targetLang string, threshold
 	return matches
 }
 
+// formatDuration formats a duration in a human-readable format
+func formatDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%.0fs", d.Seconds())
+	} else if d < time.Hour {
+		return fmt.Sprintf("%.0fm%.0fs", d.Minutes(), math.Mod(d.Seconds(), 60))
+	}
+	return fmt.Sprintf("%.0fh%.0fm", d.Hours(), math.Mod(d.Minutes(), 60))
+}
+
+// showProgress displays a progress bar with elapsed time and ETA
+func showProgress(current, total int, startTime time.Time) {
+	if total == 0 {
+		return
+	}
+	
+	progress := float64(current) / float64(total)
+	percentage := int(progress * 100)
+	
+	// Create progress bar (40 characters wide)
+	barWidth := 40
+	filledWidth := int(progress * float64(barWidth))
+	bar := strings.Repeat("█", filledWidth) + strings.Repeat("░", barWidth-filledWidth)
+	
+	elapsed := time.Since(startTime)
+	
+	var eta string
+	var rate string
+	if current > 0 {
+		avgTimePerItem := elapsed / time.Duration(current)
+		remaining := time.Duration(total-current) * avgTimePerItem
+		eta = formatDuration(remaining)
+		rate = fmt.Sprintf("%.1f items/min", float64(current)/elapsed.Minutes())
+	} else {
+		eta = "calculating..."
+		rate = "calculating..."
+	}
+	
+	// Clear the line and print progress
+	fmt.Printf("\r\033[K[%s] %3d%% (%d/%d) | Elapsed: %s | ETA: %s | Rate: %s",
+		bar, percentage, current, total, formatDuration(elapsed), eta, rate)
+	
+	if current == total {
+		fmt.Println() // New line when complete
+	}
+}
+
 func TranslateDataWithSimilarity(data parsers.TranslationData, translator Translator, targetLang string, similarityThreshold float64) (parsers.TranslationData, error) {
 	result := make(parsers.TranslationData)
 	total := len(data)
 	count := 0
+	startTime := time.Now()
 	
 	dict := NewTermDictionary()
 	dictPath := "dictionary.json"
@@ -166,12 +215,13 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 	
 	maxExamples := 3
 	
+	fmt.Printf("Starting translation of %d items...\n", total)
+	showProgress(0, total, startTime)
+	
 	for key, value := range data {
 		count++
-		fmt.Printf("Translating %d/%d: %s\n", count, total, key)
 		
 		if dictTranslation, found := dict.GetTranslation(value, targetLang); found {
-			fmt.Printf("Using exact dictionary match for '%s'\n", value)
 			result[key] = dictTranslation
 		} else {
 			similarExamples := dict.FindSimilarExamples(value, targetLang, similarityThreshold, maxExamples)
@@ -180,7 +230,6 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 			var err error
 			
 			if len(similarExamples) > 0 {
-				fmt.Printf("Found %d similar examples for '%s'\n", len(similarExamples), value)
 				if openaiTranslator, ok := translator.(*OpenAITranslator); ok {
 					translatedValue, err = openaiTranslator.TranslateWithExamples(value, targetLang, similarExamples)
 				} else {
@@ -191,7 +240,7 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 			}
 			
 			if err != nil {
-				fmt.Printf("Warning: Failed to translate '%s': %v\n", key, err)
+				fmt.Printf("\nWarning: Failed to translate '%s': %v\n", key, err)
 				result[key] = value
 			} else {
 				result[key] = translatedValue
@@ -200,11 +249,16 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 			
 			time.Sleep(100 * time.Millisecond)
 		}
+		
+		// Update progress bar
+		showProgress(count, total, startTime)
 	}
 	
 	if err := dict.SaveToFile(dictPath); err != nil {
-		fmt.Printf("Warning: Could not save term dictionary: %v\n", err)
+		fmt.Printf("\nWarning: Could not save term dictionary: %v\n", err)
 	}
+	
+	fmt.Printf("\nTranslation completed! Processed %d items in %s\n", total, formatDuration(time.Since(startTime)))
 	
 	return result, nil
 }
