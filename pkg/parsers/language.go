@@ -1,4 +1,4 @@
-package main
+package parsers
 
 import (
 	"bufio"
@@ -9,18 +9,7 @@ import (
 	"strings"
 )
 
-type FileFormat int
-
-const (
-	FormatUnknown FileFormat = iota
-	FormatJSON
-	FormatLang
-	FormatSNBT
-)
-
-type TranslationData map[string]string
-
-func detectFileFormat(filename string) FileFormat {
+func DetectFileFormat(filename string) FileFormat {
 	ext := strings.ToLower(filepath.Ext(filename))
 	switch ext {
 	case ".json":
@@ -34,8 +23,8 @@ func detectFileFormat(filename string) FileFormat {
 	}
 }
 
-func parseFile(filename string) (TranslationData, FileFormat, error) {
-	format := detectFileFormat(filename)
+func ParseFile(filename string) (TranslationData, FileFormat, error) {
+	format := DetectFileFormat(filename)
 	
 	switch format {
 	case FormatJSON:
@@ -117,7 +106,7 @@ func parseSNBTFile(filename string) (TranslationData, FileFormat, error) {
 	return nil, FormatSNBT, fmt.Errorf("SNBT format not yet implemented")
 }
 
-func writeFile(filename string, data TranslationData, format FileFormat) error {
+func WriteFile(filename string, data TranslationData, format FileFormat) error {
 	switch format {
 	case FormatJSON:
 		return writeJSONFile(filename, data)

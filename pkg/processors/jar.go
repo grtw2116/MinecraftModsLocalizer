@@ -1,4 +1,4 @@
-package main
+package processors
 
 import (
 	"archive/zip"
@@ -7,20 +7,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/grtw2116/MinecraftModsLocalizer/pkg/parsers"
+	"github.com/grtw2116/MinecraftModsLocalizer/pkg/translators"
 )
 
 type JARLanguageFile struct {
 	Path     string
 	Language string
-	Data     TranslationData
-	Format   FileFormat
+	Data     parsers.TranslationData
+	Format   parsers.FileFormat
 }
 
-func isJARFile(filename string) bool {
+func IsJARFile(filename string) bool {
 	return strings.ToLower(filepath.Ext(filename)) == ".jar"
 }
 
-func extractLanguageFiles(jarPath string) ([]JARLanguageFile, error) {
+func ExtractLanguageFiles(jarPath string) ([]JARLanguageFile, error) {
 	reader, err := zip.OpenReader(jarPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open JAR file: %v", err)
@@ -59,13 +62,13 @@ func extractSingleLanguageFile(file *zip.File) (JARLanguageFile, error) {
 	defer rc.Close()
 
 	// Determine format from original filename
-	format := detectFileFormat(file.Name)
-	if format == FormatUnknown {
+	format := parsers.DetectFileFormat(file.Name)
+	if format == parsers.FormatUnknown {
 		return JARLanguageFile{}, fmt.Errorf("unsupported file format for %s", file.Name)
 	}
 
 	// Create temp file with proper extension
-	ext := getExtensionForFormat(format)
+	ext := parsers.GetExtensionForFormat(format)
 	tempFile, err := os.CreateTemp("", "lang_*"+ext)
 	if err != nil {
 		return JARLanguageFile{}, err
@@ -80,7 +83,7 @@ func extractSingleLanguageFile(file *zip.File) (JARLanguageFile, error) {
 	}
 
 	// Parse the language file
-	data, _, err := parseFile(tempFile.Name())
+	data, _, err := parsers.ParseFile(tempFile.Name())
 	if err != nil {
 		return JARLanguageFile{}, err
 	}
@@ -97,11 +100,11 @@ func extractSingleLanguageFile(file *zip.File) (JARLanguageFile, error) {
 	}, nil
 }
 
-func processJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64) error {
+func ProcessJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64) error {
 	fmt.Printf("Processing JAR file: %s\n", jarPath)
 	
 	// Extract language files
-	langFiles, err := extractLanguageFiles(jarPath)
+	langFiles, err := ExtractLanguageFiles(jarPath)
 	if err != nil {
 		return err
 	}
@@ -123,7 +126,7 @@ func processJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extr
 		fmt.Println("\nDry run mode - would translate the following files:")
 		for _, lf := range langFiles {
 			if isSourceLanguage(lf.Language) {
-				fmt.Printf("  %s -> %s_%s%s\n", lf.Path, lf.Language, targetLang, getExtensionForFormat(lf.Format))
+				fmt.Printf("  %s -> %s_%s%s\n", lf.Path, lf.Language, targetLang, parsers.GetExtensionForFormat(lf.Format))
 			}
 		}
 		return nil
@@ -142,7 +145,7 @@ func processJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extr
 	}
 
 	// Create translator
-	translator, err := createTranslator(engine)
+	translator, err := translators.CreateTranslator(engine)
 	if err != nil {
 		return fmt.Errorf("error creating translator: %v", err)
 	}
@@ -152,7 +155,7 @@ func processJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extr
 	for _, sourceFile := range sourceFiles {
 		fmt.Printf("\nTranslating %s...\n", sourceFile.Path)
 		
-		translatedData, err := translateDataWithSimilarity(sourceFile.Data, translator, targetLang, similarityThreshold)
+		translatedData, err := translators.TranslateDataWithSimilarity(sourceFile.Data, translator, targetLang, similarityThreshold)
 		if err != nil {
 			return fmt.Errorf("error translating %s: %v", sourceFile.Path, err)
 		}
@@ -184,19 +187,6 @@ func isSourceLanguage(lang string) bool {
 	return false
 }
 
-func getExtensionForFormat(format FileFormat) string {
-	switch format {
-	case FormatJSON:
-		return ".json"
-	case FormatLang:
-		return ".lang"
-	case FormatSNBT:
-		return ".snbt"
-	default:
-		return ".txt"
-	}
-}
-
 func extractLanguageFilesToDirectory(langFiles []JARLanguageFile, outputDir string) error {
 	if outputDir == "" {
 		outputDir = "extracted_languages"
@@ -214,7 +204,7 @@ func extractLanguageFilesToDirectory(langFiles []JARLanguageFile, outputDir stri
 		}
 
 		// Write file
-		if err := writeFile(outputPath, lf.Data, lf.Format); err != nil {
+		if err := parsers.WriteFile(outputPath, lf.Data, lf.Format); err != nil {
 			return fmt.Errorf("failed to write %s: %v", outputPath, err)
 		}
 	}
@@ -234,7 +224,7 @@ func saveTranslatedFiles(translatedFiles []JARLanguageFile, outputDir string) er
 
 	for _, tf := range translatedFiles {
 		outputPath := filepath.Join(outputDir, filepath.Base(tf.Path))
-		if err := writeFile(outputPath, tf.Data, tf.Format); err != nil {
+		if err := parsers.WriteFile(outputPath, tf.Data, tf.Format); err != nil {
 			return fmt.Errorf("failed to write %s: %v", outputPath, err)
 		}
 		fmt.Printf("Saved translated file: %s\n", outputPath)
@@ -287,7 +277,7 @@ func generateResourcePack(translatedFiles []JARLanguageFile, outputPath, targetL
 		}
 
 		namespace := parts[assetsIndex+1]
-		resourcePackPath := filepath.Join(outputPath, "assets", namespace, "lang", fmt.Sprintf("%s%s", targetLang, getExtensionForFormat(tf.Format)))
+		resourcePackPath := filepath.Join(outputPath, "assets", namespace, "lang", fmt.Sprintf("%s%s", targetLang, parsers.GetExtensionForFormat(tf.Format)))
 
 		// Create directory
 		if err := os.MkdirAll(filepath.Dir(resourcePackPath), 0755); err != nil {
@@ -295,7 +285,7 @@ func generateResourcePack(translatedFiles []JARLanguageFile, outputPath, targetL
 		}
 
 		// Write language file
-		if err := writeFile(resourcePackPath, tf.Data, tf.Format); err != nil {
+		if err := parsers.WriteFile(resourcePackPath, tf.Data, tf.Format); err != nil {
 			return fmt.Errorf("failed to write resource pack file %s: %v", resourcePackPath, err)
 		}
 	}

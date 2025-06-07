@@ -1,0 +1,153 @@
+{
+  "format": "bq_standard:2",
+  "questDatabase": {
+    "0": {
+      "questID": 0,
+      "name": "Welcome to the World",
+      "description": "This is your first quest! Complete it to get started with your adventure.",
+      "isMain": true,
+      "isSilent": false,
+      "lockedProgress": false,
+      "autoClaim": false,
+      "repeatTime": -1,
+      "logic": "AND",
+      "taskLogic": "AND",
+      "icon": {
+        "id": "minecraft:book",
+        "Count": 1,
+        "tag": {},
+        "Damage": 0
+      },
+      "tasks": {
+        "0": {
+          "taskID": "bq_standard:optional_task",
+          "index": 0,
+          "name": "Read the Guide",
+          "description": "Open your inventory and read the getting started guide."
+        },
+        "1": {
+          "taskID": "bq_standard:retrieval",
+          "index": 1,
+          "name": "Collect Wood",
+          "description": "Punch some trees and collect 10 wood logs.",
+          "requiredItems": [
+            {
+              "id": "minecraft:log",
+              "Count": 10,
+              "tag": {},
+              "Damage": 0
+            }
+          ]
+        }
+      },
+      "rewards": {
+        "0": {
+          "rewardID": "bq_standard:item",
+          "index": 0,
+          "rewards": [
+            {
+              "id": "minecraft:apple",
+              "Count": 5,
+              "tag": {},
+              "Damage": 0
+            }
+          ]
+        }
+      }
+    },
+    "1": {
+      "questID": 1,
+      "name": "Building Basics",
+      "description": "Learn the fundamentals of construction in Minecraft.",
+      "isMain": false,
+      "isSilent": false,
+      "lockedProgress": false,
+      "autoClaim": false,
+      "repeatTime": -1,
+      "logic": "AND",
+      "taskLogic": "AND",
+      "preRequisites": [0],
+      "icon": {
+        "id": "minecraft:crafting_table",
+        "Count": 1,
+        "tag": {},
+        "Damage": 0
+      },
+      "tasks": {
+        "0": {
+          "taskID": "bq_standard:crafting",
+          "index": 0,
+          "name": "Craft a Workbench",
+          "description": "Use 4 wooden planks to create a crafting table.",
+          "requiredItems": [
+            {
+              "id": "minecraft:crafting_table",
+              "Count": 1,
+              "tag": {},
+              "Damage": 0
+            }
+          ]
+        },
+        "1": {
+          "taskID": "bq_standard:crafting",
+          "index": 1,
+          "name": "Make Tools",
+          "description": "Craft a wooden pickaxe and wooden axe.",
+          "requiredItems": [
+            {
+              "id": "minecraft:wooden_pickaxe",
+              "Count": 1,
+              "tag": {},
+              "Damage": 0
+            },
+            {
+              "id": "minecraft:wooden_axe",
+              "Count": 1,
+              "tag": {},
+              "Damage": 0
+            }
+          ]
+        }
+      },
+      "rewards": {
+        "0": {
+          "rewardID": "bq_standard:item",
+          "index": 0,
+          "rewards": [
+            {
+              "id": "minecraft:bread",
+              "Count": 3,
+              "tag": {},
+              "Damage": 0
+            }
+          ]
+        }
+      }
+    }
+  },
+  "questLines": {
+    "0": {
+      "lineID": 0,
+      "name": "Getting Started",
+      "description": "Essential quests for new players",
+      "icon": {
+        "id": "minecraft:compass",
+        "Count": 1,
+        "tag": {},
+        "Damage": 0
+      },
+      "quests": {
+        "0": {
+          "id": 0,
+          "x": 0,
+          "y": 0
+        },
+        "1": {
+          "id": 1,
+          "x": 144,
+          "y": 0
+        }
+      }
+    }
+  }
+}
