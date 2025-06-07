@@ -20,7 +20,7 @@ Minecraft mod files (JAR/JSON/LANG) translator with AI-powered translation engin
 ```bash
 git clone https://github.com/grtw2116/MinecraftModsLocalizer.git
 cd MinecraftModsLocalizer
-go build
+go build -o MinecraftModsLocalizer ./cmd
 ```
 
 ## Usage
