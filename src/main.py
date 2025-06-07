@@ -15,7 +15,7 @@ if __name__ == '__main__':
     # レイアウトの定義
     layout = [
         [sg.Text("Minecraft Instance Directory")],
-        [sg.InputText(key='MINECRAFT_DIR', default_text=provide_minecraft_directory() or '', expand_x=True), sg.FolderBrowse("Browse", target='MINECRAFT_DIR')],
+        [sg.InputText(key='MINECRAFT_DIR', default_text=provide_minecraft_directory() or '', expand_x=True), sg.FolderBrowse("Browse")],
         [sg.Text("Translate Target")],
         [sg.Radio('Mod', key='target1', group_id=1, default=True), sg.Radio('FtbQuests', key='target2', group_id=1), sg.Radio(
             'BetterQuesting', key='target3', group_id=1), sg.Radio('Patchouli', key='target4', group_id=1)],
