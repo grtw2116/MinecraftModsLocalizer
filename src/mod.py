@@ -3,13 +3,14 @@ import logging
 import os
 import zipfile
 from pathlib import Path
+from typing import Dict, Optional, Union
 
 from init import RESOURCE_DIR, MODS_DIR
 from prepare import extract_map_from_json, prepare_translation
 from provider import provide_log_directory
 
 
-def process_jar_file(jar_path):
+def process_jar_file(jar_path: Union[str, Path]) -> Dict[str, str]:
     mod_name = get_mod_name_from_jar(jar_path)
     if mod_name is None:
         logging.info(f"Could not determine mod name for {jar_path}")
@@ -34,7 +35,7 @@ def process_jar_file(jar_path):
     return extract_map_from_json(ja_jp_path) if os.path.exists(ja_jp_path) else extract_map_from_json(en_us_path)
 
 
-def translate_from_jar():
+def translate_from_jar() -> None:
     if not os.path.exists(RESOURCE_DIR):
         os.makedirs(os.path.join(RESOURCE_DIR, 'assets', 'japanese', 'lang'))
 
@@ -71,7 +72,7 @@ def translate_from_jar():
         json.dump(dict(sorted(untranslated_items.items())), f, ensure_ascii=False, indent=4)
 
 
-def update_resourcepack_description(file_path, new_description):
+def update_resourcepack_description(file_path: Union[str, Path], new_description: str) -> None:
     # ファイルが存在するか確認
     if not os.path.exists(file_path):
         return
@@ -99,7 +100,7 @@ def update_resourcepack_description(file_path, new_description):
             return
 
 
-def get_mod_name_from_jar(jar_path):
+def get_mod_name_from_jar(jar_path: Union[str, Path]) -> Optional[str]:
     with zipfile.ZipFile(jar_path, 'r') as zip_ref:
         asset_dirs_with_lang = set()
         for name in zip_ref.namelist():
@@ -111,7 +112,7 @@ def get_mod_name_from_jar(jar_path):
     return None
 
 
-def extract_specific_file(zip_filepath, file_name, dest_dir):
+def extract_specific_file(zip_filepath: Union[str, Path], file_name: str, dest_dir: Union[str, Path]) -> bool:
     with zipfile.ZipFile(zip_filepath, 'r') as zip_ref:
         if file_name in zip_ref.namelist():
             zip_ref.extract(file_name, dest_dir)

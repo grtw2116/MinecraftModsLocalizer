@@ -3,13 +3,15 @@ import logging
 import os
 import re
 import shutil
+from pathlib import Path
+from typing import Union
 
 from init import FTBQUESTS_DIR1, FTBQUESTS_DIR2, FTBQUESTS_DIR3, FTBQUESTS_DIR4, BETTERQUESTING_DIR
 from provider import provide_log_directory
 from prepare import extract_map_from_lang, extract_map_from_json, prepare_translation
 
 
-def translate_betterquesting_from_json(file_path):
+def translate_betterquesting_from_json(file_path: Union[str, Path]) -> None:
     clean_json_file(file_path)
     targets = extract_map_from_lang(file_path)
 
@@ -28,7 +30,7 @@ def translate_betterquesting_from_json(file_path):
             f.write(f'{lang_key}={original}\n')
 
 
-def translate_ftbquests_from_json(file_path):
+def translate_ftbquests_from_json(file_path: Union[str, Path]) -> None:
     clean_json_file(file_path)
     targets = extract_map_from_json(file_path)
 
@@ -52,7 +54,7 @@ def translate_ftbquests_from_json(file_path):
         json.dump(dict(sorted(untranslated_items.items())), f, ensure_ascii=False, indent=4)
 
 
-def translate_ftbquests_from_snbt(file_path):
+def translate_ftbquests_from_snbt(file_path: Union[str, Path]) -> None:
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
     logging.info(f"Translating {file_path}...")
@@ -90,7 +92,7 @@ def translate_ftbquests_from_snbt(file_path):
         f.write(content)
 
 
-def translate_ftbquests():
+def translate_ftbquests() -> None:
     # バックアップ用のディレクトリを作成
     backup_directory = provide_log_directory() / 'quests'
     backup_directory.mkdir(parents=True, exist_ok=True)
@@ -118,7 +120,7 @@ def translate_ftbquests():
     logging.info("Translate snbt files Done!")
 
 
-def translate_betterquesting():
+def translate_betterquesting() -> None:
     # バックアップ用のディレクトリを作成
     backup_directory = provide_log_directory() / 'quests'
     backup_directory.mkdir(parents=True, exist_ok=True)
@@ -136,7 +138,7 @@ def translate_betterquesting():
     logging.info("Translate snbt files Done!")
 
 
-def clean_json_file(json_path):
+def clean_json_file(json_path: Union[str, Path]) -> None:
     # コメントおよび空白行のパターンを正規表現で定義します。
     comment_pattern = re.compile(r'^\s*//.*$', re.MULTILINE)
     blank_lines_pattern = re.compile(r'\n\s*\n', re.MULTILINE)

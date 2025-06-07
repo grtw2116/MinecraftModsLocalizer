@@ -1,7 +1,31 @@
-API_KEY = None
-CHUNK_SIZE = 1
-MODEL = 'gpt-4o-mini-2024-07-18'
-PROMPT = """You are a professional translator. Please translate the following English text into Japanese, one line at a time, step by step, in order
+from typing import Optional
+from dataclasses import dataclass
+
+
+@dataclass
+class TranslationConfig:
+    """Configuration for translation settings."""
+    api_key: Optional[str] = None
+    chunk_size: int = 1
+    model: str = 'gpt-4o-mini-2024-07-18'
+    log_directory: Optional[str] = None
+    _prompt: Optional[str] = None
+    
+    @property
+    def prompt(self) -> str:
+        """Get the translation prompt template."""
+        if self._prompt is not None:
+            return self._prompt
+        return self._get_default_prompt()
+    
+    @prompt.setter
+    def prompt(self, value: str) -> None:
+        """Set a custom translation prompt."""
+        self._prompt = value
+    
+    def _get_default_prompt(self) -> str:
+        """Get the default translation prompt template."""
+        return """You are a professional translator. Please translate the following English text into Japanese, one line at a time, step by step, in order
 Make sure that the number of lines of text before and after translation is the same. Never add or subtract extra lines.
 
 # The number of lines of text to pass: {line_count}
@@ -48,64 +72,84 @@ Add a new requirement group.Requirement groups can hold multiplerequirements and
 新しい要件グループを追加します。要件グループは複数の要件を保持でき、基本的にそれらを1つの大きな要件にまとめます。要件グループには2つのモードがあります。§zAND §rモードでは、すべての要件がTRUE（「はい、ロードする！」を意味します）を返す必要がありますが、§zOR §rモードでは、1つの要件だけがTRUEを返す必要があります。"""
 
 
-LOG_DIRECTORY = None
+class ConfigManager:
+    """Singleton configuration manager for the translation application."""
+    _instance: Optional['ConfigManager'] = None
+    _config: TranslationConfig
+    
+    def __new__(cls) -> 'ConfigManager':
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._config = TranslationConfig()
+        return cls._instance
+    
+    @property
+    def config(self) -> TranslationConfig:
+        """Get the current configuration."""
+        return self._config
+    
+    def update_config(self, **kwargs) -> None:
+        """Update configuration with provided keyword arguments."""
+        for key, value in kwargs.items():
+            if hasattr(self._config, key):
+                setattr(self._config, key, value)
+            else:
+                raise ValueError(f"Unknown configuration key: {key}")
 
 
-def provide_api_key():
-    global API_KEY
-
-    return API_KEY
+_config_manager = ConfigManager()
 
 
-def set_api_key(api_key):
-    global API_KEY
-
-    API_KEY = api_key
-
-
-def provide_chunk_size():
-    global CHUNK_SIZE
-
-    return CHUNK_SIZE
+def provide_api_key() -> Optional[str]:
+    """Get the current API key."""
+    return _config_manager.config.api_key
 
 
-def set_chunk_size(chunk_size):
-    global CHUNK_SIZE
-
-    CHUNK_SIZE = chunk_size
-
-
-def provide_model():
-    global MODEL
-
-    return MODEL
+def set_api_key(api_key: str) -> None:
+    """Set the API key."""
+    _config_manager.config.api_key = api_key
 
 
-def set_model(model):
-    global MODEL
-
-    MODEL = model
-
-
-def provide_prompt():
-    global PROMPT
-
-    return PROMPT
+def provide_chunk_size() -> int:
+    """Get the current chunk size."""
+    return _config_manager.config.chunk_size
 
 
-def set_prompt(prompt):
-    global PROMPT
-
-    PROMPT = prompt
-
-
-def provide_log_directory():
-    global LOG_DIRECTORY
-
-    return LOG_DIRECTORY
+def set_chunk_size(chunk_size: int) -> None:
+    """Set the chunk size."""
+    _config_manager.config.chunk_size = chunk_size
 
 
-def set_log_directory(log_directory):
-    global LOG_DIRECTORY
+def provide_model() -> str:
+    """Get the current model."""
+    return _config_manager.config.model
 
-    LOG_DIRECTORY = log_directory
+
+def set_model(model: str) -> None:
+    """Set the model."""
+    _config_manager.config.model = model
+
+
+def provide_prompt() -> str:
+    """Get the current prompt template."""
+    return _config_manager.config.prompt
+
+
+def set_prompt(prompt: str) -> None:
+    """Set a custom prompt template."""
+    _config_manager.config.prompt = prompt
+
+
+def provide_log_directory() -> Optional[str]:
+    """Get the current log directory."""
+    return _config_manager.config.log_directory
+
+
+def set_log_directory(log_directory: str) -> None:
+    """Set the log directory."""
+    _config_manager.config.log_directory = log_directory
+
+
+def get_config() -> TranslationConfig:
+    """Get the configuration instance for direct access."""
+    return _config_manager.config
