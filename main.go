@@ -7,12 +7,14 @@ import (
 )
 
 var (
-	inputFile           = flag.String("input", "", "Input file path (required)")
-	outputFile          = flag.String("output", "", "Output file path (optional, defaults to input_translated.ext)")
+	inputFile           = flag.String("input", "", "Input file path (JAR file or individual language file)")
+	outputFile          = flag.String("output", "", "Output file path (optional, defaults to input_translated.ext or resource pack)")
 	targetLang          = flag.String("lang", "ja", "Target language code (default: ja)")
 	engine              = flag.String("engine", "openai", "Translation engine: openai, google, deepl (default: openai)")
 	dryRun              = flag.Bool("dry-run", false, "Parse file and show statistics without translating")
 	similarityThreshold = flag.Float64("similarity", 0.6, "Similarity threshold for finding similar examples (0.0-1.0, default: 0.6)")
+	extractOnly         = flag.Bool("extract-only", false, "Extract language files from JAR without translating")
+	resourcePack        = flag.Bool("resource-pack", false, "Generate resource pack format output")
 	help                = flag.Bool("help", false, "Show help")
 )
 
@@ -33,6 +35,15 @@ func main() {
 		*outputFile = generateOutputPath(*inputFile)
 	}
 	fmt.Printf("Output: %s\n", *outputFile)
+
+	// Check if input is a JAR file
+	if isJARFile(*inputFile) {
+		if err := processJARFile(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *resourcePack, *similarityThreshold); err != nil {
+			fmt.Fprintf(os.Stderr, "Error processing JAR file: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	// Parse input file
 	data, format, err := parseFile(*inputFile)
@@ -90,10 +101,12 @@ func showUsage() {
 	fmt.Fprintf(os.Stderr, "MinecraftModsLocalizer - Translate Minecraft mod files\n\n")
 	fmt.Fprintf(os.Stderr, "Options:\n")
 	flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, "\nSupported file formats: .json, .lang, .snbt\n")
+	fmt.Fprintf(os.Stderr, "\nSupported file formats: .json, .lang, .snbt, .jar\n")
 	fmt.Fprintf(os.Stderr, "Supported languages: ja, ko, zh-cn, zh-tw, fr, de, es, etc.\n")
-	fmt.Fprintf(os.Stderr, "\nExample:\n")
+	fmt.Fprintf(os.Stderr, "\nExamples:\n")
 	fmt.Fprintf(os.Stderr, "  %s -input en_us.json -lang ja -engine openai -similarity 0.7\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s -input mod.jar -lang ja -resource-pack\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s -input mod.jar -extract-only\n", os.Args[0])
 }
 
 func generateOutputPath(input string) string {
