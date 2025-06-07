@@ -2,6 +2,8 @@ package processors
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -12,14 +14,20 @@ import (
 func ProcessBetterQuestingFile(inputPath, outputPath, targetLang, engine string, dryRun bool, similarityThreshold float64) error {
 	fmt.Printf("Processing BetterQuesting file: %s\n", inputPath)
 	
-	// Parse BetterQuesting file
-	bqFile, err := parsers.ParseBetterQuestingFile(inputPath)
-	if err != nil {
-		return fmt.Errorf("failed to parse BetterQuesting file: %v", err)
-	}
+	// Try to extract translations directly using NBT format first
+	translations, err := parsers.ExtractNBTBetterQuestingTranslations(inputPath)
+	isNBTFormat := err == nil && len(translations) > 0
 	
-	// Extract translatable text
-	translations := parsers.ExtractBetterQuestingTranslations(bqFile)
+	if !isNBTFormat {
+		// Fallback to standard format parsing
+		bqFile, parseErr := parsers.ParseBetterQuestingFile(inputPath)
+		if parseErr != nil {
+			return fmt.Errorf("failed to parse BetterQuesting file (tried both NBT and standard formats): NBT error: %v, Standard error: %v", err, parseErr)
+		}
+		
+		// Extract translatable text using standard format
+		translations = parsers.ExtractBetterQuestingTranslations(bqFile)
+	}
 	
 	fmt.Printf("Found %d translatable strings\n", len(translations))
 	
@@ -53,9 +61,6 @@ func ProcessBetterQuestingFile(inputPath, outputPath, targetLang, engine string,
 		return fmt.Errorf("error during translation: %v", err)
 	}
 	
-	// Apply translations to BetterQuesting structure
-	parsers.ApplyBetterQuestingTranslations(bqFile, translatedData)
-	
 	// Generate output filename if not specified
 	if outputPath == "" {
 		ext := filepath.Ext(inputPath)
@@ -63,11 +68,44 @@ func ProcessBetterQuestingFile(inputPath, outputPath, targetLang, engine string,
 		outputPath = fmt.Sprintf("%s_%s%s", base, targetLang, ext)
 	}
 	
-	// Write translated file
-	if err := parsers.WriteBetterQuestingFile(outputPath, bqFile); err != nil {
-		return fmt.Errorf("error writing output file: %v", err)
+	// Apply translations based on format
+	if isNBTFormat {
+		// Copy input file to output path first, then apply translations
+		if err := copyFile(inputPath, outputPath); err != nil {
+			return fmt.Errorf("error copying file: %v", err)
+		}
+		if err := parsers.ApplyNBTBetterQuestingTranslations(outputPath, translatedData); err != nil {
+			return fmt.Errorf("error applying NBT translations: %v", err)
+		}
+	} else {
+		// Apply translations to standard format
+		bqFile, _ := parsers.ParseBetterQuestingFile(inputPath) // We know this works from earlier
+		parsers.ApplyBetterQuestingTranslations(bqFile, translatedData)
+		
+		// Write translated file
+		if err := parsers.WriteBetterQuestingFile(outputPath, bqFile); err != nil {
+			return fmt.Errorf("error writing output file: %v", err)
+		}
 	}
 	
 	fmt.Printf("Translation completed: %s\n", outputPath)
 	return nil
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	return err
 }
