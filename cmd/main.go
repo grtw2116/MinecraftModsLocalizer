@@ -108,7 +108,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error during translation: %v\n", err)
 		os.Exit(1)
 	}
-	
+
 	// Write output file
 	if err := parsers.WriteFile(*outputFile, translatedData, format); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing output file: %v\n", err)
@@ -142,3 +142,4 @@ func generateOutputPath(input string) string {
 	}
 	return input + "_translated"
 }
+
