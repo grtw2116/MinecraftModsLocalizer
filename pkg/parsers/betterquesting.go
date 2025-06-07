@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"regexp"
 )
 
 // BetterQuesting file structure
@@ -30,6 +31,60 @@ type Quest struct {
 	Icon            *ItemStack             `json:"icon,omitempty"`
 	Tasks           map[string]*Task       `json:"tasks,omitempty"`
 	Rewards         map[string]*Reward     `json:"rewards,omitempty"`
+	Properties      *QuestProperties       `json:"properties,omitempty"`
+}
+
+// QuestProperties represents the properties section of a quest
+// This handles both standard format and NBT format with dynamic typed keys
+type QuestProperties map[string]interface{}
+
+// GetBetterQuestingData extracts BetterQuesting data from properties, handling both formats
+func (qp QuestProperties) GetBetterQuestingData() map[string]interface{} {
+	if qp == nil {
+		return nil
+	}
+	
+	// Check for standard format first
+	if bqData, exists := qp["betterquesting"]; exists {
+		if bqMap, ok := bqData.(map[string]interface{}); ok {
+			return bqMap
+		}
+	}
+	
+	// Check for NBT format (betterquesting:XX)
+	for key, value := range qp {
+		if matched, _ := regexp.MatchString(`^betterquesting:\d+$`, key); matched {
+			if bqMap, ok := value.(map[string]interface{}); ok {
+				return bqMap
+			}
+		}
+	}
+	
+	return nil
+}
+
+// SetBetterQuestingData sets BetterQuesting data in properties, preserving the format
+func (qp QuestProperties) SetBetterQuestingData(data map[string]interface{}) {
+	if qp == nil {
+		return
+	}
+	
+	// Check for standard format first
+	if _, exists := qp["betterquesting"]; exists {
+		qp["betterquesting"] = data
+		return
+	}
+	
+	// Check for NBT format (betterquesting:XX)
+	for key := range qp {
+		if matched, _ := regexp.MatchString(`^betterquesting:\d+$`, key); matched {
+			qp[key] = data
+			return
+		}
+	}
+	
+	// Default to standard format if no existing format found
+	qp["betterquesting"] = data
 }
 
 type Task struct {
@@ -97,6 +152,17 @@ func IsBetterQuestingFile(filename string) bool {
 				   bqFile.QuestDatabase != nil || 
 				   bqFile.QuestLines != nil
 		}
+		
+		// Check for NBT-style format (e.g., "format:8")
+		var rawData map[string]interface{}
+		if err := json.Unmarshal(data, &rawData); err == nil {
+			// Look for NBT-style keys like "format:8", "questDatabase:9"
+			for key := range rawData {
+				if matched, _ := regexp.MatchString(`^(format|questDatabase|questLines):\d+$`, key); matched {
+					return true
+				}
+			}
+		}
 	}
 	
 	return false
@@ -129,6 +195,40 @@ func ExtractBetterQuestingTranslations(bqFile *BetterQuestingFile) TranslationDa
 			if quest.Description != "" {
 				key := fmt.Sprintf("quest.%s.description", questID)
 				translations[key] = quest.Description
+			}
+			
+			// Extract from properties if available
+			if quest.Properties != nil {
+				bqData := quest.Properties.GetBetterQuestingData()
+				if bqData != nil {
+					// Check for standard format name/desc
+					if name, exists := bqData["name"]; exists {
+						if nameStr, ok := name.(string); ok && nameStr != "" {
+							key := fmt.Sprintf("quest.%s.name", questID)
+							translations[key] = nameStr
+						}
+					}
+					if desc, exists := bqData["desc"]; exists {
+						if descStr, ok := desc.(string); ok && descStr != "" {
+							key := fmt.Sprintf("quest.%s.description", questID)
+							translations[key] = descStr
+						}
+					}
+					
+					// Check for NBT format name/desc
+					if name, exists := bqData["name:8"]; exists {
+						if nameStr, ok := name.(string); ok && nameStr != "" {
+							key := fmt.Sprintf("quest.%s.name", questID)
+							translations[key] = nameStr
+						}
+					}
+					if desc, exists := bqData["desc:8"]; exists {
+						if descStr, ok := desc.(string); ok && descStr != "" {
+							key := fmt.Sprintf("quest.%s.description", questID)
+							translations[key] = descStr
+						}
+					}
+				}
 			}
 			
 			// Extract task translations
@@ -171,11 +271,41 @@ func ApplyBetterQuestingTranslations(bqFile *BetterQuestingFile, translations Tr
 			nameKey := fmt.Sprintf("quest.%s.name", questID)
 			if translated, exists := translations[nameKey]; exists {
 				quest.Name = translated
+				
+				// Also apply to properties if they exist
+				if quest.Properties != nil {
+					bqData := quest.Properties.GetBetterQuestingData()
+					if bqData != nil {
+						// Update both standard and NBT format fields
+						if _, exists := bqData["name"]; exists {
+							bqData["name"] = translated
+						}
+						if _, exists := bqData["name:8"]; exists {
+							bqData["name:8"] = translated
+						}
+						quest.Properties.SetBetterQuestingData(bqData)
+					}
+				}
 			}
 			
 			descKey := fmt.Sprintf("quest.%s.description", questID)
 			if translated, exists := translations[descKey]; exists {
 				quest.Description = translated
+				
+				// Also apply to properties if they exist
+				if quest.Properties != nil {
+					bqData := quest.Properties.GetBetterQuestingData()
+					if bqData != nil {
+						// Update both standard and NBT format fields
+						if _, exists := bqData["desc"]; exists {
+							bqData["desc"] = translated
+						}
+						if _, exists := bqData["desc:8"]; exists {
+							bqData["desc:8"] = translated
+						}
+						quest.Properties.SetBetterQuestingData(bqData)
+					}
+				}
 			}
 			
 			// Apply task translations
@@ -254,4 +384,165 @@ func FindBetterQuestingFiles(instancePath string) ([]string, error) {
 	}
 	
 	return bqFiles, nil
+}
+
+// ExtractNBTBetterQuestingTranslations extracts translations directly from NBT-style BetterQuesting files
+func ExtractNBTBetterQuestingTranslations(filename string) (TranslationData, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var rawData map[string]interface{}
+	if err := json.Unmarshal(data, &rawData); err != nil {
+		return nil, fmt.Errorf("failed to parse NBT BetterQuesting file: %v", err)
+	}
+
+	translations := make(TranslationData)
+	
+	// Find questDatabase
+	var questDatabase map[string]interface{}
+	for key, value := range rawData {
+		if matched, _ := regexp.MatchString(`^questDatabase:\d+$`, key); matched {
+			if qdb, ok := value.(map[string]interface{}); ok {
+				questDatabase = qdb
+				break
+			}
+		}
+	}
+	
+	if questDatabase != nil {
+		for questID, questData := range questDatabase {
+			if questMap, ok := questData.(map[string]interface{}); ok {
+				// Look for properties section
+				var properties map[string]interface{}
+				for key, value := range questMap {
+					if matched, _ := regexp.MatchString(`^properties:\d+$`, key); matched {
+						if props, ok := value.(map[string]interface{}); ok {
+							properties = props
+							break
+						}
+					}
+				}
+				
+				if properties != nil {
+					// Look for betterquesting section
+					var bqSection map[string]interface{}
+					for key, value := range properties {
+						if matched, _ := regexp.MatchString(`^betterquesting:\d+$`, key); matched {
+							if bqs, ok := value.(map[string]interface{}); ok {
+								bqSection = bqs
+								break
+							}
+						}
+					}
+					
+					if bqSection != nil {
+						// Extract name and description
+						if name, exists := bqSection["name:8"]; exists {
+							if nameStr, ok := name.(string); ok && nameStr != "" {
+								key := fmt.Sprintf("quest.%s.name", questID)
+								translations[key] = nameStr
+							}
+						}
+						if desc, exists := bqSection["desc:8"]; exists {
+							if descStr, ok := desc.(string); ok && descStr != "" {
+								key := fmt.Sprintf("quest.%s.description", questID)
+								translations[key] = descStr
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return translations, nil
+}
+
+// ApplyNBTBetterQuestingTranslations applies translations to NBT-style BetterQuesting files
+func ApplyNBTBetterQuestingTranslations(filename string, translations TranslationData) error {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	var rawData map[string]interface{}
+	if err := json.Unmarshal(data, &rawData); err != nil {
+		return fmt.Errorf("failed to parse NBT BetterQuesting file: %v", err)
+	}
+	
+	// Find questDatabase
+	var questDatabase map[string]interface{}
+	var questDatabaseKey string
+	for key, value := range rawData {
+		if matched, _ := regexp.MatchString(`^questDatabase:\d+$`, key); matched {
+			if qdb, ok := value.(map[string]interface{}); ok {
+				questDatabase = qdb
+				questDatabaseKey = key
+				break
+			}
+		}
+	}
+	
+	if questDatabase != nil {
+		for questID, questData := range questDatabase {
+			if questMap, ok := questData.(map[string]interface{}); ok {
+				// Look for properties section
+				var properties map[string]interface{}
+				var propertiesKey string
+				for key, value := range questMap {
+					if matched, _ := regexp.MatchString(`^properties:\d+$`, key); matched {
+						if props, ok := value.(map[string]interface{}); ok {
+							properties = props
+							propertiesKey = key
+							break
+						}
+					}
+				}
+				
+				if properties != nil {
+					// Look for betterquesting section
+					var bqSection map[string]interface{}
+					var bqSectionKey string
+					for key, value := range properties {
+						if matched, _ := regexp.MatchString(`^betterquesting:\d+$`, key); matched {
+							if bqs, ok := value.(map[string]interface{}); ok {
+								bqSection = bqs
+								bqSectionKey = key
+								break
+							}
+						}
+					}
+					
+					if bqSection != nil {
+						// Apply translations
+						nameKey := fmt.Sprintf("quest.%s.name", questID)
+						if translated, exists := translations[nameKey]; exists {
+							bqSection["name:8"] = translated
+						}
+						
+						descKey := fmt.Sprintf("quest.%s.description", questID)
+						if translated, exists := translations[descKey]; exists {
+							bqSection["desc:8"] = translated
+						}
+						
+						// Update the nested structure
+						properties[bqSectionKey] = bqSection
+						questMap[propertiesKey] = properties
+						questDatabase[questID] = questMap
+					}
+				}
+			}
+		}
+		rawData[questDatabaseKey] = questDatabase
+	}
+	
+	// Write back to file
+	outputData, err := json.MarshalIndent(rawData, "", "  ")
+	if err != nil {
+		return err
+	}
+	
+	return os.WriteFile(filename, outputData, 0644)
 }
