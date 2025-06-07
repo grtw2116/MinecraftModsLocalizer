@@ -6,33 +6,68 @@ from pathlib import Path
 from typing import Dict, Optional, Union
 
 from init import get_resource_dir, get_mods_dir
-from prepare import extract_map_from_json, prepare_translation
+from prepare import extract_map_from_json, extract_map_from_lang, prepare_translation
 from provider import provide_log_directory
 
 
-def process_jar_file(jar_path: Union[str, Path]) -> Dict[str, str]:
+def process_jar_file(jar_path: Union[str, Path]) -> tuple[Dict[str, str], str]:
     mod_name = get_mod_name_from_jar(jar_path)
     if mod_name is None:
         logging.info(f"Could not determine mod name for {jar_path}")
-        return {}
+        return {}, 'json'
 
     lang_path_in_jar = Path(f'assets/{mod_name}/lang/')
-    ja_jp_path_in_jar = os.path.join(lang_path_in_jar, 'ja_jp.json')
-    en_us_path_in_jar = os.path.join(lang_path_in_jar, 'en_us.json')
-    ja_jp_path_in_jar_str = str(ja_jp_path_in_jar).replace('\\', '/')
-    en_us_path_in_jar_str = str(en_us_path_in_jar).replace('\\', '/')
+    
+    # JSON files
+    ja_jp_json_path = os.path.join(lang_path_in_jar, 'ja_jp.json')
+    en_us_json_path = os.path.join(lang_path_in_jar, 'en_us.json')
+    
+    # Lang files  
+    ja_jp_lang_path = os.path.join(lang_path_in_jar, 'ja_jp.lang')
+    en_us_lang_path = os.path.join(lang_path_in_jar, 'en_us.lang')
+    
+    # Convert to string paths for zipfile compatibility
+    ja_jp_json_str = str(ja_jp_json_path).replace('\\', '/')
+    en_us_json_str = str(en_us_json_path).replace('\\', '/')
+    ja_jp_lang_str = str(ja_jp_lang_path).replace('\\', '/')
+    en_us_lang_str = str(en_us_lang_path).replace('\\', '/')
 
-    logging.info(f"Extract en_us.json or ja_jp.json in {jar_path / lang_path_in_jar}")
+    log_dir = provide_log_directory()
+    if log_dir is None:
+        logging.error("Log directory not configured")
+        return {}, 'json'
+
+    logging.info(f"Extract language files from {jar_path / lang_path_in_jar}")
     with zipfile.ZipFile(jar_path, 'r') as zip_ref:
-        if en_us_path_in_jar_str in zip_ref.namelist():
-            extract_specific_file(jar_path, en_us_path_in_jar_str, provide_log_directory())
-        if ja_jp_path_in_jar_str in zip_ref.namelist():
-            extract_specific_file(jar_path, ja_jp_path_in_jar_str, provide_log_directory())
+        # Extract JSON files
+        if en_us_json_str in zip_ref.namelist():
+            extract_specific_file(jar_path, en_us_json_str, log_dir)
+        if ja_jp_json_str in zip_ref.namelist():
+            extract_specific_file(jar_path, ja_jp_json_str, log_dir)
+        
+        # Extract lang files
+        if en_us_lang_str in zip_ref.namelist():
+            extract_specific_file(jar_path, en_us_lang_str, log_dir)
+        if ja_jp_lang_str in zip_ref.namelist():
+            extract_specific_file(jar_path, ja_jp_lang_str, log_dir)
 
-    en_us_path = os.path.join(provide_log_directory(), en_us_path_in_jar)
-    ja_jp_path = os.path.join(provide_log_directory(), ja_jp_path_in_jar)
+    # Define local file paths
+    en_us_json_local = os.path.join(log_dir, en_us_json_path)
+    ja_jp_json_local = os.path.join(log_dir, ja_jp_json_path)
+    en_us_lang_local = os.path.join(log_dir, en_us_lang_path)
+    ja_jp_lang_local = os.path.join(log_dir, ja_jp_lang_path)
 
-    return extract_map_from_json(ja_jp_path) if os.path.exists(ja_jp_path) else extract_map_from_json(en_us_path)
+    # Priority: ja_jp.json > en_us.json > ja_jp.lang > en_us.lang
+    if os.path.exists(ja_jp_json_local):
+        return extract_map_from_json(ja_jp_json_local), 'json'
+    elif os.path.exists(en_us_json_local):
+        return extract_map_from_json(en_us_json_local), 'json'
+    elif os.path.exists(ja_jp_lang_local):
+        return extract_map_from_lang(ja_jp_lang_local), 'lang'
+    elif os.path.exists(en_us_lang_local):
+        return extract_map_from_lang(en_us_lang_local), 'lang'
+    
+    return {}, 'json'
 
 
 def translate_from_jar() -> None:
@@ -43,6 +78,7 @@ def translate_from_jar() -> None:
         os.makedirs(os.path.join(resource_dir, 'assets', 'japanese', 'lang'))
 
     targets = {}
+    output_format = 'json'  # Default to JSON format
 
     extracted_pack_mcmeta = False
     for filename in os.listdir(mods_dir):
@@ -53,7 +89,11 @@ def translate_from_jar() -> None:
                                                               resource_dir)
                 update_resourcepack_description(os.path.join(resource_dir, 'pack.mcmeta'), '日本語化パック')
 
-            targets.update(process_jar_file(os.path.join(mods_dir, filename)))
+            jar_targets, jar_format = process_jar_file(os.path.join(mods_dir, filename))
+            targets.update(jar_targets)
+            # Use lang format if any jar contains lang files
+            if jar_format == 'lang':
+                output_format = 'lang'
 
     translated_map = prepare_translation(list(targets.values()))
 
@@ -63,10 +103,20 @@ def translate_from_jar() -> None:
     untranslated_items = {json_key: original for json_key, original in targets.items() if
                           original not in translated_map}
 
-    with open(os.path.join(resource_dir, 'assets', 'japanese', 'lang', 'ja_jp.json'), 'w', encoding="utf-8") as f:
-        json.dump(dict(sorted(translated_targets.items())), f, ensure_ascii=False, indent=4)
+    # Write output in the appropriate format
+    if output_format == 'json':
+        with open(os.path.join(resource_dir, 'assets', 'japanese', 'lang', 'ja_jp.json'), 'w', encoding="utf-8") as f:
+            json.dump(dict(sorted(translated_targets.items())), f, ensure_ascii=False, indent=4)
+    else:  # lang format
+        with open(os.path.join(resource_dir, 'assets', 'japanese', 'lang', 'ja_jp.lang'), 'w', encoding="utf-8") as f:
+            for key, value in sorted(translated_targets.items()):
+                f.write(f'{key}={value}\n')
 
-    error_directory = os.path.join(provide_log_directory(), 'error')
+    log_dir = provide_log_directory()
+    if log_dir is None:
+        logging.error("Log directory not configured for error handling")
+        return
+    error_directory = os.path.join(log_dir, 'error')
 
     if not os.path.exists(error_directory):
         os.makedirs(error_directory)
