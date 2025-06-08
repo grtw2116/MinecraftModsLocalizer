@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/grtw2116/MinecraftModsLocalizer/pkg/parsers"
 	"github.com/grtw2116/MinecraftModsLocalizer/pkg/processors"
-	"github.com/grtw2116/MinecraftModsLocalizer/pkg/translators"
 )
 
 var (
@@ -33,6 +31,16 @@ func main() {
 
 	fmt.Printf("MinecraftModsLocalizer CLI\n")
 	fmt.Printf("Input: %s\n", *inputFile)
+
+	// Detect input type
+	inputType := processors.DetectInputType(*inputFile)
+	if inputType == processors.InputTypeUnknown {
+		fmt.Fprintf(os.Stderr, "Error: Unable to determine input type for: %s\n", *inputFile)
+		fmt.Fprintf(os.Stderr, "Supported inputs: Minecraft instance directories, .jar files, .json/.lang/.snbt files, BetterQuesting files\n")
+		os.Exit(1)
+	}
+
+	fmt.Printf("Input type: %s\n", inputType.String())
 	fmt.Printf("Target Language: %s\n", *targetLang)
 	fmt.Printf("Engine: %s\n", *engine)
 
@@ -41,82 +49,18 @@ func main() {
 	}
 	fmt.Printf("Output: %s\n", *outputFile)
 
-	// Check if input is a JAR file
-	if processors.IsJARFile(*inputFile) {
-		if err := processors.ProcessJARFile(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *resourcePack, *similarityThreshold, *batchSize); err != nil {
-			fmt.Fprintf(os.Stderr, "Error processing JAR file: %v\n", err)
-			os.Exit(1)
-		}
-		return
-	}
-
-	// Check if input is a BetterQuesting file
-	if parsers.IsBetterQuestingFile(*inputFile) {
-		if err := processors.ProcessBetterQuestingFile(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *similarityThreshold, *batchSize); err != nil {
-			fmt.Fprintf(os.Stderr, "Error processing BetterQuesting file: %v\n", err)
-			os.Exit(1)
-		}
-		return
-	}
-
-	// Check if input is a directory (potential Minecraft instance)
-	if fileInfo, err := os.Stat(*inputFile); err == nil && fileInfo.IsDir() {
-		if err := processors.ProcessMinecraftInstance(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *resourcePack, *similarityThreshold, *batchSize); err != nil {
-			fmt.Fprintf(os.Stderr, "Error processing Minecraft instance: %v\n", err)
-			os.Exit(1)
-		}
-		return
-	}
-
-	// Parse input file
-	data, format, err := parsers.ParseFile(*inputFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing file: %v\n", err)
+	// Create appropriate processor
+	processor := processors.CreateProcessor(inputType)
+	if processor == nil {
+		fmt.Fprintf(os.Stderr, "Error: No processor available for input type: %s\n", inputType.String())
 		os.Exit(1)
 	}
 
-	fmt.Printf("Detected format: %v\n", format.String())
-	fmt.Printf("Found %d translation keys\n", len(data))
-
-	if *dryRun {
-		fmt.Println("\nDry run mode - showing sample keys:")
-		count := 0
-		for key, value := range data {
-			if count >= 3 {
-				break
-			}
-			fmt.Printf("  %s: %s\n", key, value)
-			count++
-		}
-		if len(data) > 3 {
-			fmt.Printf("  ... and %d more keys\n", len(data)-3)
-		}
-		fmt.Println("Use --dry-run=false to perform actual translation")
-		return
-	}
-
-	// Create translator
-	translator, err := translators.CreateTranslator(*engine)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating translator: %v\n", err)
+	// Process the input
+	if err := processor.Process(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *resourcePack, *similarityThreshold, *batchSize); err != nil {
+		fmt.Fprintf(os.Stderr, "Error processing %s: %v\n", inputType.String(), err)
 		os.Exit(1)
 	}
-
-	// Perform translation
-	fmt.Printf("Starting translation with %s engine (similarity threshold: %.1f, batch size: %d)...\n", *engine, *similarityThreshold, *batchSize)
-	translatedData, err := translators.TranslateDataWithSimilarity(data, translator, *targetLang, *similarityThreshold, *batchSize)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error during translation: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Write output file
-	if err := parsers.WriteFile(*outputFile, translatedData, format); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing output file: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("Processing completed: %s\n", *outputFile)
 }
 
 func showUsage() {
@@ -143,4 +87,3 @@ func generateOutputPath(input string) string {
 	}
 	return input + "_translated"
 }
-
