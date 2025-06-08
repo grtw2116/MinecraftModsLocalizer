@@ -161,7 +161,7 @@ func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine strin
 	// Set up output directory structure
 	if outputPath == "" {
 		if resourcePack {
-			outputPath = filepath.Join(instance.RootPath, fmt.Sprintf("resource_pack_%s", targetLang))
+			outputPath = filepath.Join(instance.RootPath, "resourcepacks")
 		} else if extractOnly {
 			outputPath = filepath.Join(instance.RootPath, "extracted_languages")
 		} else {
@@ -372,7 +372,7 @@ func generateCombinedResourcePack(allTranslatedFiles []JARLanguageFile, outputPa
 		}
 
 		namespace := parts[assetsIndex+1]
-		resourcePackPath := filepath.Join(outputPath, "assets", namespace, "lang", fmt.Sprintf("%s%s", targetLang, parsers.GetExtensionForFormat(tf.Format)))
+		resourcePackPath := filepath.Join(outputPath, "localization", "assets", namespace, "lang", fmt.Sprintf("%s%s", targetLang, parsers.GetExtensionForFormat(tf.Format)))
 
 		if err := os.MkdirAll(filepath.Dir(resourcePackPath), 0755); err != nil {
 			return err
