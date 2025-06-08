@@ -171,25 +171,7 @@ func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine strin
 
 	fmt.Printf("Output directory: %s\n", outputPath)
 
-	// Process BetterQuesting files first
-	if len(bqFiles) > 0 && !extractOnly {
-		bqOutputPath := filepath.Join(outputPath, "betterquesting")
-		if err := os.MkdirAll(bqOutputPath, 0755); err != nil {
-			return fmt.Errorf("failed to create BetterQuesting output directory: %v", err)
-		}
-
-		for i, bqFile := range bqFiles {
-			fmt.Printf("\n=== Processing BetterQuesting %d/%d: %s ===\n", i+1, len(bqFiles), filepath.Base(bqFile))
-
-			bqOutputFile := filepath.Join(bqOutputPath, fmt.Sprintf("%s_%s", targetLang, filepath.Base(bqFile)))
-			if err := ProcessBetterQuestingFile(bqFile, bqOutputFile, targetLang, engine, false, similarityThreshold, batchSize); err != nil {
-				fmt.Printf("Warning: Failed to process %s: %v\n", filepath.Base(bqFile), err)
-				continue
-			}
-		}
-	}
-
-	// Process each JAR file
+	// Process each JAR file first to ensure consistent terminology for BetterQuesting translation
 	var allTranslatedFiles []JARLanguageFile
 	var totalExtracted int
 
@@ -217,6 +199,24 @@ func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine strin
 		}
 
 		totalExtracted++
+	}
+
+	// Process BetterQuesting files after JAR files to benefit from consistent terminology
+	if len(bqFiles) > 0 && !extractOnly {
+		bqOutputPath := filepath.Join(outputPath, "betterquesting")
+		if err := os.MkdirAll(bqOutputPath, 0755); err != nil {
+			return fmt.Errorf("failed to create BetterQuesting output directory: %v", err)
+		}
+
+		for i, bqFile := range bqFiles {
+			fmt.Printf("\n=== Processing BetterQuesting %d/%d: %s ===\n", i+1, len(bqFiles), filepath.Base(bqFile))
+
+			bqOutputFile := filepath.Join(bqOutputPath, fmt.Sprintf("%s_%s", targetLang, filepath.Base(bqFile)))
+			if err := ProcessBetterQuestingFile(bqFile, bqOutputFile, targetLang, engine, false, similarityThreshold, batchSize); err != nil {
+				fmt.Printf("Warning: Failed to process %s: %v\n", filepath.Base(bqFile), err)
+				continue
+			}
+		}
 	}
 
 	if extractOnly {
