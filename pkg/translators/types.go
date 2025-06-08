@@ -5,6 +5,12 @@ import (
 	"github.com/grtw2116/MinecraftModsLocalizer/pkg/parsers"
 )
 
+// ProgressCallback is called during batch translation to report progress
+type ProgressCallback func(completed, total int)
+
+// BatchResultCallback is called after each batch is completed to process results immediately
+type BatchResultCallback func(results []BatchTranslationResult)
+
 type Translator interface {
 	Translate(text, targetLang string) (string, error)
 	TranslateBatch(texts []string, targetLang string) ([]BatchTranslationResult, error)

@@ -239,7 +239,27 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 		if len(pendingTexts) > 0 {
 			if openaiTranslator, ok := translator.(*OpenAITranslator); ok {
 				// Use the new method that accepts keys for key-value pairs in prompts
-				batchResults, err := openaiTranslator.TranslateBatchWithKeys(pendingKeys, pendingTexts, targetLang, batchSize)
+				// Create progress callback to update progress during batch processing
+				progressCallback := func(completed, batchTotal int) {
+					// Update count based on actual progress from batch translation
+					currentCount := count + completed
+					showProgress(currentCount, total, startTime)
+				}
+				
+				// Create batch result callback to update dictionary after each batch
+				batchResultCallback := func(batchResults []BatchTranslationResult) {
+					// Save dictionary after each batch completion
+					for _, batchResult := range batchResults {
+						if batchResult.IsValid {
+							dict.AddTerm(batchResult.Input, targetLang, batchResult.Output)
+						}
+					}
+					if err := dict.SaveToFile(dictPath); err != nil {
+						fmt.Printf("\nWarning: Failed to save dictionary: %v\n", err)
+					}
+				}
+				
+				batchResults, err := openaiTranslator.TranslateBatchWithKeysProgressAndCallback(pendingKeys, pendingTexts, targetLang, batchSize, progressCallback, batchResultCallback)
 				if err != nil {
 					return nil, fmt.Errorf("batch translation failed: %v", err)
 				}
@@ -257,7 +277,7 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 						if batchResult, found := resultMap[value]; found {
 							if batchResult.IsValid {
 								result[key] = batchResult.Output
-								dict.AddTerm(value, targetLang, batchResult.Output)
+								// Dictionary is already updated in batchResultCallback
 							} else {
 								fmt.Printf("\nError: Failed to translate key '%s' (text: '%s'): %s\n", key, value, batchResult.Error)
 								result[key] = value
@@ -267,7 +287,7 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 							result[key] = value
 						}
 						count++
-						showProgress(count, total, startTime)
+						// Progress is already updated by the progress callback during batch processing
 					}
 				}
 			} else {

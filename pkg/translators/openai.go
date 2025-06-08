@@ -80,6 +80,14 @@ func (t *OpenAITranslator) TranslateBatchWithSize(texts []string, targetLang str
 }
 
 func (t *OpenAITranslator) TranslateBatchWithKeys(keys, texts []string, targetLang string, batchSize int) ([]BatchTranslationResult, error) {
+	return t.TranslateBatchWithKeysAndProgress(keys, texts, targetLang, batchSize, nil)
+}
+
+func (t *OpenAITranslator) TranslateBatchWithKeysAndProgress(keys, texts []string, targetLang string, batchSize int, progressCallback ProgressCallback) ([]BatchTranslationResult, error) {
+	return t.TranslateBatchWithKeysProgressAndCallback(keys, texts, targetLang, batchSize, progressCallback, nil)
+}
+
+func (t *OpenAITranslator) TranslateBatchWithKeysProgressAndCallback(keys, texts []string, targetLang string, batchSize int, progressCallback ProgressCallback, batchCallback BatchResultCallback) ([]BatchTranslationResult, error) {
 	if t.APIKey == "" {
 		return nil, fmt.Errorf("API key not found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")
 	}
@@ -94,6 +102,7 @@ func (t *OpenAITranslator) TranslateBatchWithKeys(keys, texts []string, targetLa
 	}
 
 	var results []BatchTranslationResult
+	originalTotalTexts := len(texts)
 
 	for len(texts) > 0 {
 		currentBatchSize := batchSize
@@ -124,6 +133,16 @@ func (t *OpenAITranslator) TranslateBatchWithKeys(keys, texts []string, targetLa
 		}
 
 		results = append(results, batchResults...)
+		
+		// Call batch result callback after each batch is completed
+		if batchCallback != nil {
+			batchCallback(batchResults)
+		}
+		
+		// Report progress after each batch is completed
+		if progressCallback != nil {
+			progressCallback(len(results), originalTotalTexts)
+		}
 	}
 
 	originalTexts := make([]string, len(results))
