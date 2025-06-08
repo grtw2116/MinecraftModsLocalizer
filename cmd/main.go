@@ -16,7 +16,6 @@ var (
 	dryRun              = flag.Bool("dry-run", false, "Parse file and show statistics without translating")
 	similarityThreshold = flag.Float64("similarity", 0.6, "Similarity threshold for finding similar examples (0.0-1.0, default: 0.6)")
 	extractOnly         = flag.Bool("extract-only", false, "Extract language files from JAR without translating")
-	resourcePack        = flag.Bool("resource-pack", false, "Generate resource pack format output")
 	batchSize           = flag.Int("batch-size", 1, "Number of texts to translate per API request (default: 1 for individual processing, 10+ for batch processing)")
 	help                = flag.Bool("help", false, "Show help")
 )
@@ -44,13 +43,10 @@ func main() {
 	fmt.Printf("Target Language: %s\n", *targetLang)
 	fmt.Printf("Engine: %s\n", *engine)
 
-	if *outputFile == "" {
-		*outputFile = generateOutputPath(*inputFile)
-	}
 	fmt.Printf("Output: %s\n", *outputFile)
 
 	// Process the input
-	if err := processors.ProcessInput(inputType, *inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *resourcePack, *similarityThreshold, *batchSize); err != nil {
+	if err := processors.ProcessInput(inputType, *inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *similarityThreshold, *batchSize); err != nil {
 		fmt.Fprintf(os.Stderr, "Error processing %s: %v\n", inputType.String(), err)
 		os.Exit(1)
 	}
@@ -64,19 +60,9 @@ func showUsage() {
 	fmt.Fprintf(os.Stderr, "\nSupported inputs: Minecraft instance directories, .jar files, .json/.lang/.snbt files, BetterQuesting files\n")
 	fmt.Fprintf(os.Stderr, "Supported languages: ja, ko, zh-cn, zh-tw, fr, de, es, etc.\n")
 	fmt.Fprintf(os.Stderr, "\nExamples:\n")
-	fmt.Fprintf(os.Stderr, "  %s -input /path/to/minecraft/instance -lang ja -resource-pack\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s -input /path/to/minecraft/instance -lang ja\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "  %s -input /path/to/minecraft/instance -extract-only\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "  %s -input mod.jar -lang ja -resource-pack\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s -input mod.jar -lang ja\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "  %s -input defaultquests.json -lang ja\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "  %s -input en_us.json -lang ja -engine openai -similarity 0.7\n", os.Args[0])
-}
-
-func generateOutputPath(input string) string {
-	// Extract extension and create output filename
-	if len(input) > 4 {
-		ext := input[len(input)-5:]
-		base := input[:len(input)-5]
-		return base + "_translated" + ext
-	}
-	return input + "_translated"
 }

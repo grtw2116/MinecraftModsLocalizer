@@ -78,16 +78,16 @@ func isLanguageFile(filename string) bool {
 }
 
 // ProcessInput processes the input based on its detected type
-func ProcessInput(inputType InputType, inputPath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
+func ProcessInput(inputType InputType, inputPath, outputPath, targetLang, engine string, dryRun, extractOnly bool, similarityThreshold float64, batchSize int) error {
 	switch inputType {
 	case InputTypeLanguageFile:
 		return ProcessLanguageFile(inputPath, outputPath, targetLang, engine, dryRun, similarityThreshold, batchSize)
 	case InputTypeJARFile:
-		return ProcessJARFile(inputPath, outputPath, targetLang, engine, dryRun, extractOnly, resourcePack, similarityThreshold, batchSize)
+		return ProcessJARFile(inputPath, outputPath, targetLang, engine, dryRun, extractOnly, false, similarityThreshold, batchSize)
 	case InputTypeBetterQuesting:
 		return ProcessBetterQuestingFile(inputPath, outputPath, targetLang, engine, dryRun, similarityThreshold, batchSize)
 	case InputTypeMinecraftInstance:
-		return ProcessMinecraftInstance(inputPath, outputPath, targetLang, engine, dryRun, extractOnly, resourcePack, similarityThreshold, batchSize)
+		return ProcessMinecraftInstance(inputPath, outputPath, targetLang, engine, dryRun, extractOnly, true, similarityThreshold, batchSize)
 	default:
 		return fmt.Errorf("unsupported input type: %s", inputType.String())
 	}
