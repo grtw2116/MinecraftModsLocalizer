@@ -92,4 +92,3 @@ func ProcessInput(inputType InputType, inputPath, outputPath, targetLang, engine
 		return fmt.Errorf("unsupported input type: %s", inputType.String())
 	}
 }
-

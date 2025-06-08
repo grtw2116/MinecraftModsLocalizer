@@ -19,8 +19,8 @@ func TestProcessLanguageFile(t *testing.T) {
 	// Test data
 	testData := map[string]string{
 		"item.test.example": "Example Item",
-		"block.test.stone": "Test Stone",
-		"gui.test.title":   "Test GUI",
+		"block.test.stone":  "Test Stone",
+		"gui.test.title":    "Test GUI",
 	}
 
 	// Create test JSON file

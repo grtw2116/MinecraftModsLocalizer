@@ -56,12 +56,12 @@ func (td *TermDictionary) SaveToFile(filename string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	dir := filepath.Dir(filename)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	
+
 	return os.WriteFile(filename, data, 0644)
 }
 
@@ -126,7 +126,7 @@ func calculateSimilarity(s1, s2 string) float64 {
 
 func (td *TermDictionary) FindSimilarExamples(text, targetLang string, threshold float64, maxResults int) []SimilarityMatch {
 	var matches []SimilarityMatch
-	
+
 	if langTerms, exists := td.Terms[targetLang]; exists {
 		for original, translation := range langTerms {
 			similarity := calculateSimilarity(text, original)
@@ -142,15 +142,15 @@ func (td *TermDictionary) FindSimilarExamples(text, targetLang string, threshold
 			}
 		}
 	}
-	
+
 	sort.Slice(matches, func(i, j int) bool {
 		return matches[i].Similarity > matches[j].Similarity
 	})
-	
+
 	if len(matches) > maxResults {
 		matches = matches[:maxResults]
 	}
-	
+
 	return matches
 }
 
@@ -169,17 +169,17 @@ func showProgress(current, total int, startTime time.Time) {
 	if total == 0 {
 		return
 	}
-	
+
 	progress := float64(current) / float64(total)
 	percentage := int(progress * 100)
-	
+
 	// Create progress bar (40 characters wide)
 	barWidth := 40
 	filledWidth := int(progress * float64(barWidth))
 	bar := strings.Repeat("█", filledWidth) + strings.Repeat("░", barWidth-filledWidth)
-	
+
 	elapsed := time.Since(startTime)
-	
+
 	var eta string
 	var rate string
 	if current > 0 {
@@ -191,11 +191,11 @@ func showProgress(current, total int, startTime time.Time) {
 		eta = "calculating..."
 		rate = "calculating..."
 	}
-	
+
 	// Clear the line and print progress
 	fmt.Printf("\r\033[K[%s] %3d%% (%d/%d) | Elapsed: %s | ETA: %s | Rate: %s",
 		bar, percentage, current, total, formatDuration(elapsed), eta, rate)
-	
+
 	if current == total {
 		fmt.Println() // New line when complete
 	}
@@ -206,24 +206,24 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 	total := len(data)
 	count := 0
 	startTime := time.Now()
-	
+
 	dict := NewTermDictionary()
 	dictPath := "dictionary.json"
 	if err := dict.LoadFromFile(dictPath); err != nil {
 		fmt.Printf("Warning: Could not load term dictionary: %v\n", err)
 	}
-	
+
 	maxExamples := 3
-	
+
 	fmt.Printf("Starting translation of %d items...\n", total)
 	showProgress(0, total, startTime)
-	
+
 	if batchSize > 1 {
 		// Batch processing mode
 		var pendingTexts []string
 		var pendingKeys []string
 		var pendingValues []string
-		
+
 		for key, value := range data {
 			if dictTranslation, found := dict.GetTranslation(value, targetLang); found {
 				result[key] = dictTranslation
@@ -235,14 +235,14 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 				pendingValues = append(pendingValues, value)
 			}
 		}
-		
+
 		if len(pendingTexts) > 0 {
 			if openaiTranslator, ok := translator.(*OpenAITranslator); ok {
 				batchResults, err := openaiTranslator.TranslateBatchWithSize(pendingTexts, targetLang, batchSize)
 				if err != nil {
 					return nil, fmt.Errorf("batch translation failed: %v", err)
 				}
-				
+
 				for i, batchResult := range batchResults {
 					if i < len(pendingKeys) {
 						key := pendingKeys[i]
@@ -278,15 +278,15 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 		// Individual processing mode (original behavior)
 		for key, value := range data {
 			count++
-			
+
 			if dictTranslation, found := dict.GetTranslation(value, targetLang); found {
 				result[key] = dictTranslation
 			} else {
 				similarExamples := dict.FindSimilarExamples(value, targetLang, similarityThreshold, maxExamples)
-				
+
 				var translatedValue string
 				var err error
-				
+
 				if len(similarExamples) > 0 {
 					if openaiTranslator, ok := translator.(*OpenAITranslator); ok {
 						translatedValue, err = openaiTranslator.TranslateWithExamples(value, targetLang, similarExamples)
@@ -296,7 +296,7 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 				} else {
 					translatedValue, err = translator.Translate(value, targetLang)
 				}
-				
+
 				if err != nil {
 					fmt.Printf("\nWarning: Failed to translate '%s': %v\n", key, err)
 					result[key] = value
@@ -304,20 +304,20 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 					result[key] = translatedValue
 					dict.AddTerm(value, targetLang, translatedValue)
 				}
-				
+
 				time.Sleep(100 * time.Millisecond)
 			}
-			
+
 			// Update progress bar
 			showProgress(count, total, startTime)
 		}
 	}
-	
+
 	if err := dict.SaveToFile(dictPath); err != nil {
 		fmt.Printf("\nWarning: Could not save term dictionary: %v\n", err)
 	}
-	
+
 	fmt.Printf("\nTranslation completed! Processed %d items in %s\n", total, formatDuration(time.Since(startTime)))
-	
+
 	return result, nil
 }

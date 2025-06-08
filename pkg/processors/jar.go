@@ -19,7 +19,6 @@ type JARLanguageFile struct {
 	Format   parsers.FileFormat
 }
 
-
 func ExtractLanguageFiles(jarPath string) ([]JARLanguageFile, error) {
 	reader, err := zip.OpenReader(jarPath)
 	if err != nil {
@@ -35,15 +34,15 @@ func ExtractLanguageFiles(jarPath string) ([]JARLanguageFile, error) {
 		}
 
 		// Check if this is a language file in assets/*/lang/
-		if strings.Contains(file.Name, "/lang/") && 
-		   (strings.HasSuffix(file.Name, ".json") || strings.HasSuffix(file.Name, ".lang")) {
-			
+		if strings.Contains(file.Name, "/lang/") &&
+			(strings.HasSuffix(file.Name, ".json") || strings.HasSuffix(file.Name, ".lang")) {
+
 			langFile, err := extractSingleLanguageFile(file)
 			if err != nil {
 				fmt.Printf("Warning: Failed to extract %s: %v\n", file.Name, err)
 				continue
 			}
-			
+
 			langFiles = append(langFiles, langFile)
 		}
 	}
@@ -99,7 +98,7 @@ func extractSingleLanguageFile(file *zip.File) (JARLanguageFile, error) {
 
 func ProcessJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
 	fmt.Printf("Processing JAR file: %s\n", jarPath)
-	
+
 	// Extract language files
 	langFiles, err := ExtractLanguageFiles(jarPath)
 	if err != nil {
@@ -151,7 +150,7 @@ func ProcessJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extr
 	var translatedFiles []JARLanguageFile
 	for _, sourceFile := range sourceFiles {
 		fmt.Printf("\nTranslating %s...\n", sourceFile.Path)
-		
+
 		translatedData, err := translators.TranslateDataWithSimilarity(sourceFile.Data, translator, targetLang, similarityThreshold, batchSize)
 		if err != nil {
 			return fmt.Errorf("error translating %s: %v", sourceFile.Path, err)

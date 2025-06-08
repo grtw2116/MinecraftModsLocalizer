@@ -284,7 +284,7 @@ func TestParseFileErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			filepath := filepath.Join(tmpDir, tt.filename)
-			
+
 			// Create file with content (except for non-existent file test)
 			if tt.content != "" {
 				if err := os.WriteFile(filepath, []byte(tt.content), 0644); err != nil {

@@ -118,7 +118,6 @@ func findJARFiles(modsPath string) ([]string, error) {
 	return jarFiles, nil
 }
 
-
 func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
 	fmt.Printf("Processing Minecraft instance: %s\n", instancePath)
 
@@ -181,7 +180,7 @@ func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine strin
 
 		for i, bqFile := range bqFiles {
 			fmt.Printf("\n=== Processing BetterQuesting %d/%d: %s ===\n", i+1, len(bqFiles), filepath.Base(bqFile))
-			
+
 			bqOutputFile := filepath.Join(bqOutputPath, fmt.Sprintf("%s_%s", targetLang, filepath.Base(bqFile)))
 			if err := ProcessBetterQuestingFile(bqFile, bqOutputFile, targetLang, engine, false, similarityThreshold, batchSize); err != nil {
 				fmt.Printf("Warning: Failed to process %s: %v\n", filepath.Base(bqFile), err)
@@ -201,7 +200,7 @@ func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine strin
 			// Extract to separate directory for each mod
 			modName := getModNameFromJAR(jarFile)
 			modOutputPath := filepath.Join(outputPath, modName)
-			
+
 			if err := processSingleJARForExtraction(jarFile, modOutputPath); err != nil {
 				fmt.Printf("Warning: Failed to process %s: %v\n", filepath.Base(jarFile), err)
 				continue
@@ -213,10 +212,10 @@ func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine strin
 				fmt.Printf("Warning: Failed to process %s: %v\n", filepath.Base(jarFile), err)
 				continue
 			}
-			
+
 			allTranslatedFiles = append(allTranslatedFiles, translatedFiles...)
 		}
-		
+
 		totalExtracted++
 	}
 
@@ -242,7 +241,7 @@ func getModNameFromJAR(jarPath string) string {
 	basename := filepath.Base(jarPath)
 	// Remove .jar extension and clean up version numbers
 	modName := strings.TrimSuffix(basename, ".jar")
-	
+
 	// Try to remove common version patterns
 	// e.g., "modname-1.2.3" -> "modname"
 	if idx := strings.LastIndex(modName, "-"); idx > 0 {
@@ -252,7 +251,7 @@ func getModNameFromJAR(jarPath string) string {
 			modName = modName[:idx]
 		}
 	}
-	
+
 	return modName
 }
 
@@ -317,7 +316,7 @@ func processSingleJARForTranslation(jarPath, targetLang, engine string, similari
 	var translatedFiles []JARLanguageFile
 	for _, sourceFile := range sourceFiles {
 		fmt.Printf("  Translating %s (%d keys)\n", sourceFile.Language, len(sourceFile.Data))
-		
+
 		translatedData, err := translators.TranslateDataWithSimilarity(sourceFile.Data, translator, targetLang, similarityThreshold, batchSize)
 		if err != nil {
 			return nil, err
@@ -394,7 +393,7 @@ func saveCombinedTranslatedFiles(allTranslatedFiles []JARLanguageFile, outputPat
 
 	// Group files by mod (namespace)
 	modFiles := make(map[string][]JARLanguageFile)
-	
+
 	for _, tf := range allTranslatedFiles {
 		parts := strings.Split(tf.Path, "/")
 		if len(parts) < 3 {
@@ -423,7 +422,7 @@ func saveCombinedTranslatedFiles(allTranslatedFiles []JARLanguageFile, outputPat
 		for _, tf := range files {
 			filename := fmt.Sprintf("%s%s", tf.Language, parsers.GetExtensionForFormat(tf.Format))
 			outputFile := filepath.Join(modDir, filename)
-			
+
 			if err := parsers.WriteFile(outputFile, tf.Data, tf.Format); err != nil {
 				return err
 			}

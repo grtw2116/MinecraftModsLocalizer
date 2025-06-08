@@ -5,33 +5,33 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"regexp"
+	"strings"
 )
 
 // BetterQuesting file structure
 type BetterQuestingFile struct {
-	Format        string                     `json:"format"`
-	QuestDatabase map[string]*Quest          `json:"questDatabase,omitempty"`
-	QuestLines    map[string]*QuestLine      `json:"questLines,omitempty"`
+	Format        string                `json:"format"`
+	QuestDatabase map[string]*Quest     `json:"questDatabase,omitempty"`
+	QuestLines    map[string]*QuestLine `json:"questLines,omitempty"`
 }
 
 type Quest struct {
-	QuestID         int                    `json:"questID"`
-	Name            string                 `json:"name"`
-	Description     string                 `json:"description"`
-	IsMain          bool                   `json:"isMain"`
-	IsSilent        bool                   `json:"isSilent"`
-	LockedProgress  bool                   `json:"lockedProgress"`
-	AutoClaim       bool                   `json:"autoClaim"`
-	RepeatTime      int                    `json:"repeatTime"`
-	Logic           string                 `json:"logic"`
-	TaskLogic       string                 `json:"taskLogic"`
-	PreRequisites   []int                  `json:"preRequisites,omitempty"`
-	Icon            *ItemStack             `json:"icon,omitempty"`
-	Tasks           map[string]*Task       `json:"tasks,omitempty"`
-	Rewards         map[string]*Reward     `json:"rewards,omitempty"`
-	Properties      *QuestProperties       `json:"properties,omitempty"`
+	QuestID        int                `json:"questID"`
+	Name           string             `json:"name"`
+	Description    string             `json:"description"`
+	IsMain         bool               `json:"isMain"`
+	IsSilent       bool               `json:"isSilent"`
+	LockedProgress bool               `json:"lockedProgress"`
+	AutoClaim      bool               `json:"autoClaim"`
+	RepeatTime     int                `json:"repeatTime"`
+	Logic          string             `json:"logic"`
+	TaskLogic      string             `json:"taskLogic"`
+	PreRequisites  []int              `json:"preRequisites,omitempty"`
+	Icon           *ItemStack         `json:"icon,omitempty"`
+	Tasks          map[string]*Task   `json:"tasks,omitempty"`
+	Rewards        map[string]*Reward `json:"rewards,omitempty"`
+	Properties     *QuestProperties   `json:"properties,omitempty"`
 }
 
 // QuestProperties represents the properties section of a quest
@@ -43,14 +43,14 @@ func (qp QuestProperties) GetBetterQuestingData() map[string]interface{} {
 	if qp == nil {
 		return nil
 	}
-	
+
 	// Check for standard format first
 	if bqData, exists := qp["betterquesting"]; exists {
 		if bqMap, ok := bqData.(map[string]interface{}); ok {
 			return bqMap
 		}
 	}
-	
+
 	// Check for NBT format (betterquesting:XX)
 	for key, value := range qp {
 		if matched, _ := regexp.MatchString(`^betterquesting:\d+$`, key); matched {
@@ -59,7 +59,7 @@ func (qp QuestProperties) GetBetterQuestingData() map[string]interface{} {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -68,13 +68,13 @@ func (qp QuestProperties) SetBetterQuestingData(data map[string]interface{}) {
 	if qp == nil {
 		return
 	}
-	
+
 	// Check for standard format first
 	if _, exists := qp["betterquesting"]; exists {
 		qp["betterquesting"] = data
 		return
 	}
-	
+
 	// Check for NBT format (betterquesting:XX)
 	for key := range qp {
 		if matched, _ := regexp.MatchString(`^betterquesting:\d+$`, key); matched {
@@ -82,31 +82,31 @@ func (qp QuestProperties) SetBetterQuestingData(data map[string]interface{}) {
 			return
 		}
 	}
-	
+
 	// Default to standard format if no existing format found
 	qp["betterquesting"] = data
 }
 
 type Task struct {
-	TaskID        string      `json:"taskID"`
-	Index         int         `json:"index"`
-	Name          string      `json:"name,omitempty"`
-	Description   string      `json:"description,omitempty"`
+	TaskID        string       `json:"taskID"`
+	Index         int          `json:"index"`
+	Name          string       `json:"name,omitempty"`
+	Description   string       `json:"description,omitempty"`
 	RequiredItems []*ItemStack `json:"requiredItems,omitempty"`
 }
 
 type Reward struct {
-	RewardID string      `json:"rewardID"`
-	Index    int         `json:"index"`
+	RewardID string       `json:"rewardID"`
+	Index    int          `json:"index"`
 	Rewards  []*ItemStack `json:"rewards,omitempty"`
 }
 
 type QuestLine struct {
-	LineID      int                    `json:"lineID"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Icon        *ItemStack             `json:"icon,omitempty"`
-	Quests      map[string]*QuestPos   `json:"quests,omitempty"`
+	LineID      int                  `json:"lineID"`
+	Name        string               `json:"name"`
+	Description string               `json:"description"`
+	Icon        *ItemStack           `json:"icon,omitempty"`
+	Quests      map[string]*QuestPos `json:"quests,omitempty"`
 }
 
 type QuestPos struct {
@@ -127,7 +127,7 @@ func IsBetterQuestingFile(filename string) bool {
 	if !strings.HasSuffix(strings.ToLower(filename), ".json") {
 		return false
 	}
-	
+
 	// Check for common BetterQuesting file names
 	baseName := strings.ToLower(filepath.Base(filename))
 	bqNames := []string{
@@ -136,23 +136,23 @@ func IsBetterQuestingFile(filename string) bool {
 		"betterquesting.json",
 		"questbook.json",
 	}
-	
+
 	for _, name := range bqNames {
 		if baseName == name {
 			return true
 		}
 	}
-	
+
 	// Try to parse and check for BetterQuesting format
 	if data, err := os.ReadFile(filename); err == nil {
 		var bqFile BetterQuestingFile
 		if err := json.Unmarshal(data, &bqFile); err == nil {
 			// Check if it has BetterQuesting format marker
-			return strings.Contains(bqFile.Format, "bq_standard") || 
-				   bqFile.QuestDatabase != nil || 
-				   bqFile.QuestLines != nil
+			return strings.Contains(bqFile.Format, "bq_standard") ||
+				bqFile.QuestDatabase != nil ||
+				bqFile.QuestLines != nil
 		}
-		
+
 		// Check for NBT-style format (e.g., "format:8")
 		var rawData map[string]interface{}
 		if err := json.Unmarshal(data, &rawData); err == nil {
@@ -164,7 +164,7 @@ func IsBetterQuestingFile(filename string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -184,7 +184,7 @@ func ParseBetterQuestingFile(filename string) (*BetterQuestingFile, error) {
 
 func ExtractBetterQuestingTranslations(bqFile *BetterQuestingFile) TranslationData {
 	translations := make(TranslationData)
-	
+
 	// Extract quest translations
 	if bqFile.QuestDatabase != nil {
 		for questID, quest := range bqFile.QuestDatabase {
@@ -205,7 +205,7 @@ func ExtractBetterQuestingTranslations(bqFile *BetterQuestingFile) TranslationDa
 							translations[key] = descStr
 						}
 					}
-					
+
 					// Check for NBT format name/desc
 					if name, exists := bqData["name:8"]; exists {
 						if nameStr, ok := name.(string); ok && nameStr != "" && isTranslatableText(nameStr) {
@@ -221,7 +221,7 @@ func ExtractBetterQuestingTranslations(bqFile *BetterQuestingFile) TranslationDa
 					}
 				}
 			}
-			
+
 			// Extract reward translations (user-facing messages)
 			if quest.Rewards != nil {
 				for rewardID, reward := range quest.Rewards {
@@ -246,7 +246,7 @@ func ExtractBetterQuestingTranslations(bqFile *BetterQuestingFile) TranslationDa
 			}
 		}
 	}
-	
+
 	// Extract quest line translations
 	if bqFile.QuestLines != nil {
 		for lineID, questLine := range bqFile.QuestLines {
@@ -260,7 +260,7 @@ func ExtractBetterQuestingTranslations(bqFile *BetterQuestingFile) TranslationDa
 			}
 		}
 	}
-	
+
 	return translations
 }
 
@@ -269,24 +269,24 @@ func isTranslatableText(text string) bool {
 	if text == "" {
 		return false
 	}
-	
+
 	// Exclude technical identifiers, IDs, and configuration values
 	excludePatterns := []string{
-		`^[a-z_]+:[a-z_]+$`,              // Minecraft resource identifiers (e.g., "minecraft:stone")
-		`^[A-Z_][A-Z_0-9]*$`,             // Constants/enum values (e.g., "ALWAYS", "AND")
-		`^[a-z]+\.[a-z.]+$`,              // Translation keys (e.g., "bq_standard.reward.command")
-		`^(true|false)$`,                 // Boolean strings
-		`^\d+$`,                          // Pure numbers
-		`^[a-f0-9\-]{36}$`,              // UUIDs
-		`^#[a-fA-F0-9]{6,8}$`,           // Color codes
+		`^[a-z_]+:[a-z_]+$`,   // Minecraft resource identifiers (e.g., "minecraft:stone")
+		`^[A-Z_][A-Z_0-9]*$`,  // Constants/enum values (e.g., "ALWAYS", "AND")
+		`^[a-z]+\.[a-z.]+$`,   // Translation keys (e.g., "bq_standard.reward.command")
+		`^(true|false)$`,      // Boolean strings
+		`^\d+$`,               // Pure numbers
+		`^[a-f0-9\-]{36}$`,    // UUIDs
+		`^#[a-fA-F0-9]{6,8}$`, // Color codes
 	}
-	
+
 	for _, pattern := range excludePatterns {
 		if matched, _ := regexp.MatchString(pattern, strings.TrimSpace(text)); matched {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -295,20 +295,20 @@ func isPlayerMessage(cmd string) bool {
 	if cmd == "" {
 		return false
 	}
-	
+
 	// Check if command contains player-visible messages (like /say, /tell, etc.)
 	playerMessagePatterns := []string{
-		`/say\s+.+`,      // /say commands
-		`/tell\s+.+`,     // /tell commands
-		`/title\s+.+`,    // /title commands
+		`/say\s+.+`,   // /say commands
+		`/tell\s+.+`,  // /tell commands
+		`/title\s+.+`, // /title commands
 	}
-	
+
 	for _, pattern := range playerMessagePatterns {
 		if matched, _ := regexp.MatchString(pattern, cmd); matched {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -333,7 +333,7 @@ func ApplyBetterQuestingTranslations(bqFile *BetterQuestingFile, translations Tr
 					}
 				}
 			}
-			
+
 			descKey := fmt.Sprintf("quest.%s.description", questID)
 			if translated, exists := translations[descKey]; exists {
 				// Apply to properties (the authoritative source)
@@ -351,7 +351,7 @@ func ApplyBetterQuestingTranslations(bqFile *BetterQuestingFile, translations Tr
 					}
 				}
 			}
-			
+
 			// Apply reward translations
 			if quest.Rewards != nil {
 				for rewardID, reward := range quest.Rewards {
@@ -364,7 +364,7 @@ func ApplyBetterQuestingTranslations(bqFile *BetterQuestingFile, translations Tr
 							}
 						}
 					}
-					
+
 					// Apply reward command translations
 					rewardCmdKey := fmt.Sprintf("quest.%s.reward.%s.command", questID, rewardID)
 					if translated, exists := translations[rewardCmdKey]; exists {
@@ -378,7 +378,7 @@ func ApplyBetterQuestingTranslations(bqFile *BetterQuestingFile, translations Tr
 			}
 		}
 	}
-	
+
 	// Apply quest line translations
 	if bqFile.QuestLines != nil {
 		for lineID, questLine := range bqFile.QuestLines {
@@ -386,7 +386,7 @@ func ApplyBetterQuestingTranslations(bqFile *BetterQuestingFile, translations Tr
 			if translated, exists := translations[nameKey]; exists {
 				questLine.Name = translated
 			}
-			
+
 			descKey := fmt.Sprintf("questline.%s.description", lineID)
 			if translated, exists := translations[descKey]; exists {
 				questLine.Description = translated
@@ -406,7 +406,7 @@ func WriteBetterQuestingFile(filename string, bqFile *BetterQuestingFile) error 
 
 func FindBetterQuestingFiles(instancePath string) ([]string, error) {
 	var bqFiles []string
-	
+
 	// Common locations for BetterQuesting files in Minecraft instances
 	searchPaths := []string{
 		filepath.Join(instancePath, "config", "betterquesting"),
@@ -414,29 +414,29 @@ func FindBetterQuestingFiles(instancePath string) ([]string, error) {
 		filepath.Join(instancePath, "saves"),
 		instancePath, // Root directory
 	}
-	
+
 	for _, searchPath := range searchPaths {
 		if _, err := os.Stat(searchPath); os.IsNotExist(err) {
 			continue
 		}
-		
+
 		err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
-			
+
 			if !info.IsDir() && IsBetterQuestingFile(path) {
 				bqFiles = append(bqFiles, path)
 			}
-			
+
 			return nil
 		})
-		
+
 		if err != nil {
 			return nil, err
 		}
 	}
-	
+
 	return bqFiles, nil
 }
 
@@ -453,7 +453,7 @@ func ExtractNBTBetterQuestingTranslations(filename string) (TranslationData, err
 	}
 
 	translations := make(TranslationData)
-	
+
 	// Find questDatabase
 	var questDatabase map[string]interface{}
 	for key, value := range rawData {
@@ -464,7 +464,7 @@ func ExtractNBTBetterQuestingTranslations(filename string) (TranslationData, err
 			}
 		}
 	}
-	
+
 	if questDatabase != nil {
 		for questID, questData := range questDatabase {
 			if questMap, ok := questData.(map[string]interface{}); ok {
@@ -478,7 +478,7 @@ func ExtractNBTBetterQuestingTranslations(filename string) (TranslationData, err
 						}
 					}
 				}
-				
+
 				if properties != nil {
 					// Look for betterquesting section
 					var bqSection map[string]interface{}
@@ -490,7 +490,7 @@ func ExtractNBTBetterQuestingTranslations(filename string) (TranslationData, err
 							}
 						}
 					}
-					
+
 					if bqSection != nil {
 						// Extract name and description
 						if name, exists := bqSection["name:8"]; exists {
@@ -510,7 +510,7 @@ func ExtractNBTBetterQuestingTranslations(filename string) (TranslationData, err
 			}
 		}
 	}
-	
+
 	return translations, nil
 }
 
@@ -525,7 +525,7 @@ func ApplyNBTBetterQuestingTranslations(filename string, translations Translatio
 	if err := json.Unmarshal(data, &rawData); err != nil {
 		return fmt.Errorf("failed to parse NBT BetterQuesting file: %v", err)
 	}
-	
+
 	// Find questDatabase
 	var questDatabase map[string]interface{}
 	var questDatabaseKey string
@@ -538,7 +538,7 @@ func ApplyNBTBetterQuestingTranslations(filename string, translations Translatio
 			}
 		}
 	}
-	
+
 	if questDatabase != nil {
 		for questID, questData := range questDatabase {
 			if questMap, ok := questData.(map[string]interface{}); ok {
@@ -554,7 +554,7 @@ func ApplyNBTBetterQuestingTranslations(filename string, translations Translatio
 						}
 					}
 				}
-				
+
 				if properties != nil {
 					// Look for betterquesting section
 					var bqSection map[string]interface{}
@@ -568,19 +568,19 @@ func ApplyNBTBetterQuestingTranslations(filename string, translations Translatio
 							}
 						}
 					}
-					
+
 					if bqSection != nil {
 						// Apply translations
 						nameKey := fmt.Sprintf("quest.%s.name", questID)
 						if translated, exists := translations[nameKey]; exists {
 							bqSection["name:8"] = translated
 						}
-						
+
 						descKey := fmt.Sprintf("quest.%s.description", questID)
 						if translated, exists := translations[descKey]; exists {
 							bqSection["desc:8"] = translated
 						}
-						
+
 						// Update the nested structure
 						properties[bqSectionKey] = bqSection
 						questMap[propertiesKey] = properties
@@ -591,12 +591,12 @@ func ApplyNBTBetterQuestingTranslations(filename string, translations Translatio
 		}
 		rawData[questDatabaseKey] = questDatabase
 	}
-	
+
 	// Write back to file
 	outputData, err := json.MarshalIndent(rawData, "", "  ")
 	if err != nil {
 		return err
 	}
-	
+
 	return os.WriteFile(filename, outputData, 0644)
 }

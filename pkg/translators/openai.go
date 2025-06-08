@@ -28,7 +28,7 @@ type Message struct {
 }
 
 type OpenAIResponse struct {
-	Choices []Choice `json:"choices"`
+	Choices []Choice     `json:"choices"`
 	Error   *OpenAIError `json:"error,omitempty"`
 }
 
@@ -46,17 +46,17 @@ func NewOpenAITranslator() *OpenAITranslator {
 	if apiKey == "" {
 		apiKey = os.Getenv("ANTHROPIC_API_KEY") // For Claude or other compatible APIs
 	}
-	
+
 	baseURL := os.Getenv("OPENAI_BASE_URL")
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
-	
+
 	model := os.Getenv("OPENAI_MODEL")
 	if model == "" {
 		model = "gpt-4o-mini" // Default to cost-effective model
 	}
-	
+
 	return &OpenAITranslator{
 		APIKey:  apiKey,
 		Model:   model,
@@ -82,16 +82,16 @@ func (t *OpenAITranslator) TranslateBatchWithSize(texts []string, targetLang str
 	}
 
 	var results []BatchTranslationResult
-	
+
 	for len(texts) > 0 {
 		currentBatchSize := batchSize
 		if len(texts) < currentBatchSize {
 			currentBatchSize = len(texts)
 		}
-		
+
 		batch := texts[:currentBatchSize]
 		texts = texts[currentBatchSize:]
-		
+
 		batchResults, err := t.translateBatchChunk(batch, targetLang)
 		if err != nil {
 			for _, text := range batch {
@@ -104,10 +104,10 @@ func (t *OpenAITranslator) TranslateBatchWithSize(texts []string, targetLang str
 			}
 			continue
 		}
-		
+
 		results = append(results, batchResults...)
 	}
-	
+
 	originalTexts := make([]string, len(results))
 	for i, result := range results {
 		originalTexts[i] = result.Input
@@ -132,7 +132,7 @@ func (t *OpenAITranslator) TranslateBatchWithSize(texts []string, targetLang str
 			}
 		}
 	}
-	
+
 	return results, nil
 }
 
@@ -141,7 +141,7 @@ func (t *OpenAITranslator) translateBatchChunk(texts []string, targetLang string
 	for i, text := range texts {
 		textList.WriteString(fmt.Sprintf("%d. %s\n", i+1, text))
 	}
-	
+
 	prompt := fmt.Sprintf(`Translate the following Minecraft mod texts from English to %s. Keep translations natural and appropriate for gaming context.
 
 Please respond with ONLY the translated texts in the same numbered format:
@@ -201,12 +201,12 @@ Return the translations in the exact same numbered format (1., 2., etc.), one pe
 func (t *OpenAITranslator) parseBatchResponse(inputs []string, response string) ([]BatchTranslationResult, error) {
 	lines := strings.Split(response, "\n")
 	var results []BatchTranslationResult
-	
+
 	for i, input := range inputs {
 		var output string
 		var isValid bool
 		var errorMsg string
-		
+
 		if i < len(lines) {
 			line := strings.TrimSpace(lines[i])
 			numberPrefix := fmt.Sprintf("%d.", i+1)
@@ -223,7 +223,7 @@ func (t *OpenAITranslator) parseBatchResponse(inputs []string, response string) 
 			isValid = false
 			errorMsg = "Missing translation in response"
 		}
-		
+
 		results = append(results, BatchTranslationResult{
 			Input:   input,
 			Output:  output,
@@ -231,7 +231,7 @@ func (t *OpenAITranslator) parseBatchResponse(inputs []string, response string) 
 			Error:   errorMsg,
 		})
 	}
-	
+
 	return results, nil
 }
 
@@ -241,19 +241,19 @@ func (t *OpenAITranslator) TranslateWithExamples(text, targetLang string, exampl
 	}
 
 	prompt := fmt.Sprintf(`Translate the following Minecraft mod text from English to %s. Keep the translation natural and appropriate for gaming context.`, getLanguageName(targetLang))
-	
+
 	if len(examples) > 0 {
 		prompt += "\n\nHere are some similar translation examples for reference:\n"
 		for i, match := range examples {
 			if i >= 3 {
 				break
 			}
-			prompt += fmt.Sprintf("- \"%s\" → \"%s\" (similarity: %.1f%%)\n", 
+			prompt += fmt.Sprintf("- \"%s\" → \"%s\" (similarity: %.1f%%)\n",
 				match.Example.Original, match.Example.Translation, match.Similarity*100)
 		}
 		prompt += "\nPlease maintain consistency with these examples when translating."
 	}
-	
+
 	prompt += fmt.Sprintf(`
 
 Text to translate: %s
@@ -321,7 +321,7 @@ func getLanguageName(code string) string {
 		"pt":    "Portuguese",
 		"ru":    "Russian",
 	}
-	
+
 	if name, exists := langMap[strings.ToLower(code)]; exists {
 		return name
 	}

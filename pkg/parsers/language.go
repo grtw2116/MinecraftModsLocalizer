@@ -25,7 +25,7 @@ func DetectFileFormat(filename string) FileFormat {
 
 func ParseFile(filename string) (TranslationData, FileFormat, error) {
 	format := DetectFileFormat(filename)
-	
+
 	switch format {
 	case FormatJSON:
 		return parseJSONFile(filename)
@@ -53,7 +53,7 @@ func parseJSONFile(filename string) (TranslationData, FileFormat, error) {
 
 	result := make(TranslationData)
 	flattenJSON(data, "", result)
-	
+
 	return result, FormatJSON, nil
 }
 
@@ -83,13 +83,13 @@ func parseLangFile(filename string) (TranslationData, FileFormat, error) {
 
 	result := make(TranslationData)
 	scanner := bufio.NewScanner(file)
-	
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		
+
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) == 2 {
 			key := strings.TrimSpace(parts[0])
@@ -97,7 +97,7 @@ func parseLangFile(filename string) (TranslationData, FileFormat, error) {
 			result[key] = value
 		}
 	}
-	
+
 	return result, FormatLang, scanner.Err()
 }
 
@@ -143,7 +143,7 @@ func writeLangFile(filename string, data TranslationData) error {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 

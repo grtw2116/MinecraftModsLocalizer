@@ -11,17 +11,17 @@ type Translator interface {
 }
 
 type BatchTranslationResult struct {
-	Input      string                 `json:"input"`
-	Output     string                 `json:"output"`
-	IsValid    bool                   `json:"is_valid"`
-	Error      string                 `json:"error,omitempty"`
-	Validation *ValidationResult      `json:"validation,omitempty"`
+	Input      string            `json:"input"`
+	Output     string            `json:"output"`
+	IsValid    bool              `json:"is_valid"`
+	Error      string            `json:"error,omitempty"`
+	Validation *ValidationResult `json:"validation,omitempty"`
 }
 
 type ValidationResult struct {
-	IsValid          bool     `json:"is_valid"`
-	MissingInputs    []string `json:"missing_inputs,omitempty"`
-	MissingCount     int      `json:"missing_count"`
+	IsValid       bool     `json:"is_valid"`
+	MissingInputs []string `json:"missing_inputs,omitempty"`
+	MissingCount  int      `json:"missing_count"`
 }
 
 type TranslationExample struct {
@@ -53,20 +53,20 @@ func ValidateBatchResults(inputs []string, results []BatchTranslationResult) *Va
 	for _, input := range inputs {
 		inputSet[input] = true
 	}
-	
+
 	var missingInputs []string
 	resultSet := make(map[string]bool)
-	
+
 	for _, result := range results {
 		resultSet[result.Input] = true
 	}
-	
+
 	for input := range inputSet {
 		if !resultSet[input] {
 			missingInputs = append(missingInputs, input)
 		}
 	}
-	
+
 	return &ValidationResult{
 		IsValid:       len(missingInputs) == 0,
 		MissingInputs: missingInputs,
