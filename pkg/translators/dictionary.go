@@ -259,11 +259,11 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 								result[key] = batchResult.Output
 								dict.AddTerm(value, targetLang, batchResult.Output)
 							} else {
-								fmt.Printf("\nWarning: Failed to translate '%s': %s\n", key, batchResult.Error)
+								fmt.Printf("\nError: Failed to translate key '%s' (text: '%s'): %s\n", key, value, batchResult.Error)
 								result[key] = value
 							}
 						} else {
-							fmt.Printf("\nWarning: No translation result found for '%s'\n", key)
+							fmt.Printf("\nError: No translation result found for key '%s' (text: '%s')\n", key, value)
 							result[key] = value
 						}
 						count++
@@ -275,7 +275,7 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 				for i, value := range pendingTexts {
 					translatedValue, err := translator.Translate(value, targetLang)
 					if err != nil {
-						fmt.Printf("\nWarning: Failed to translate '%s': %v\n", pendingKeys[i], err)
+						fmt.Printf("\nError: Failed to translate key '%s' (text: '%s'): %v\n", pendingKeys[i], value, err)
 						result[pendingKeys[i]] = value
 					} else {
 						result[pendingKeys[i]] = translatedValue
@@ -311,7 +311,7 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 				}
 
 				if err != nil {
-					fmt.Printf("\nWarning: Failed to translate '%s': %v\n", key, err)
+					fmt.Printf("\nError: Failed to translate key '%s' (text: '%s'): %v\n", key, value, err)
 					result[key] = value
 				} else {
 					result[key] = translatedValue

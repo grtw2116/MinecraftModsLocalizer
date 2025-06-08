@@ -211,22 +211,30 @@ Return the translations in the exact same numbered format (1., 2., etc.), one pe
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("API request failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read API response: %v", err)
+	}
+
+	logger.Debug("API response status: %d, body length: %d", resp.StatusCode, len(body))
+	logger.Debug("Raw API response body: %s", string(body))
+	
+	// Check for non-2xx status codes
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
 	var openaiResp OpenAIResponse
 	if err := json.Unmarshal(body, &openaiResp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse API response: %v. Response body: %s", err, string(body))
 	}
 
 	if openaiResp.Error != nil {
-		return nil, fmt.Errorf("OpenAI API error: %s", openaiResp.Error.Message)
+		return nil, fmt.Errorf("API error (%s): %s", openaiResp.Error.Type, openaiResp.Error.Message)
 	}
 
 	if len(openaiResp.Choices) == 0 {
@@ -350,22 +358,29 @@ Only return the translated text, nothing else.`, text)
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("API request failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read API response: %v", err)
+	}
+
+	logger.Debug("API response status: %d, body length: %d", resp.StatusCode, len(body))
+	
+	// Check for non-2xx status codes
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
 	var openaiResp OpenAIResponse
 	if err := json.Unmarshal(body, &openaiResp); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to parse API response: %v. Response body: %s", err, string(body))
 	}
 
 	if openaiResp.Error != nil {
-		return "", fmt.Errorf("OpenAI API error: %s", openaiResp.Error.Message)
+		return "", fmt.Errorf("API error (%s): %s", openaiResp.Error.Type, openaiResp.Error.Message)
 	}
 
 	if len(openaiResp.Choices) == 0 {
