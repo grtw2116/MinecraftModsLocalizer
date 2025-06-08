@@ -118,7 +118,7 @@ func findJARFiles(modsPath string) ([]string, error) {
 	return jarFiles, nil
 }
 
-func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
+func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine, minecraftVersion string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
 	fmt.Printf("Processing Minecraft instance: %s\n", instancePath)
 
 	// Detect and validate the Minecraft instance
@@ -189,7 +189,7 @@ func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine strin
 			}
 		} else {
 			// Process for translation
-			translatedFiles, err := processSingleJARForTranslation(jarFile, targetLang, engine, similarityThreshold, batchSize)
+			translatedFiles, err := processSingleJARForTranslation(jarFile, targetLang, engine, minecraftVersion, similarityThreshold, batchSize)
 			if err != nil {
 				fmt.Printf("Warning: Failed to process %s: %v\n", filepath.Base(jarFile), err)
 				continue
@@ -211,8 +211,9 @@ func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine strin
 		for i, bqFile := range bqFiles {
 			fmt.Printf("\n=== Processing BetterQuesting %d/%d: %s ===\n", i+1, len(bqFiles), filepath.Base(bqFile))
 
-			bqOutputFile := filepath.Join(bqOutputPath, fmt.Sprintf("%s_%s", targetLang, filepath.Base(bqFile)))
-			if err := ProcessBetterQuestingFile(bqFile, bqOutputFile, targetLang, engine, false, similarityThreshold, batchSize); err != nil {
+			formattedLang := parsers.FormatLocaleCode(targetLang, minecraftVersion)
+			bqOutputFile := filepath.Join(bqOutputPath, fmt.Sprintf("%s_%s", formattedLang, filepath.Base(bqFile)))
+			if err := ProcessBetterQuestingFile(bqFile, bqOutputFile, targetLang, engine, minecraftVersion, false, similarityThreshold, batchSize); err != nil {
 				fmt.Printf("Warning: Failed to process %s: %v\n", filepath.Base(bqFile), err)
 				continue
 			}
@@ -283,7 +284,7 @@ func processSingleJARForExtraction(jarPath, outputPath string) error {
 	return extractLanguageFilesToDirectory(langFiles, outputPath)
 }
 
-func processSingleJARForTranslation(jarPath, targetLang, engine string, similarityThreshold float64, batchSize int) ([]JARLanguageFile, error) {
+func processSingleJARForTranslation(jarPath, targetLang, engine, minecraftVersion string, similarityThreshold float64, batchSize int) ([]JARLanguageFile, error) {
 	langFiles, err := ExtractLanguageFiles(jarPath)
 	if err != nil {
 		return nil, err
@@ -322,9 +323,10 @@ func processSingleJARForTranslation(jarPath, targetLang, engine string, similari
 			return nil, err
 		}
 
+		formattedLang := parsers.FormatLocaleCode(targetLang, minecraftVersion)
 		translatedFile := JARLanguageFile{
-			Path:     strings.Replace(sourceFile.Path, sourceFile.Language, targetLang, 1),
-			Language: targetLang,
+			Path:     strings.Replace(sourceFile.Path, sourceFile.Language, formattedLang, 1),
+			Language: formattedLang,
 			Data:     translatedData,
 			Format:   sourceFile.Format,
 		}
@@ -372,7 +374,7 @@ func generateCombinedResourcePack(allTranslatedFiles []JARLanguageFile, outputPa
 		}
 
 		namespace := parts[assetsIndex+1]
-		resourcePackPath := filepath.Join(outputPath, "localization", "assets", namespace, "lang", fmt.Sprintf("%s%s", targetLang, parsers.GetExtensionForFormat(tf.Format)))
+		resourcePackPath := filepath.Join(outputPath, "localization", "assets", namespace, "lang", fmt.Sprintf("%s%s", tf.Language, parsers.GetExtensionForFormat(tf.Format)))
 
 		if err := os.MkdirAll(filepath.Dir(resourcePackPath), 0755); err != nil {
 			return err

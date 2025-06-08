@@ -8,7 +8,7 @@ import (
 )
 
 // ProcessLanguageFile handles individual language files (.json, .lang, .snbt)
-func ProcessLanguageFile(inputPath, outputPath, targetLang, engine string, dryRun bool, similarityThreshold float64, batchSize int) error {
+func ProcessLanguageFile(inputPath, outputPath, targetLang, engine, minecraftVersion string, dryRun bool, similarityThreshold float64, batchSize int) error {
 	fmt.Printf("Processing language file: %s\n", inputPath)
 
 	// Parse input file

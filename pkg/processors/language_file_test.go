@@ -76,6 +76,7 @@ func TestProcessLanguageFile(t *testing.T) {
 				outputFile,
 				"ja",
 				"openai",
+				"1.20",
 				tt.dryRun,
 				0.6,
 				1,
@@ -121,6 +122,7 @@ func TestProcessLanguageFileWithRealData(t *testing.T) {
 		outputFile,
 		"ja",
 		"openai",
+		"1.20",
 		true, // dry run
 		0.6,
 		1,

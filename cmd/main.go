@@ -13,6 +13,7 @@ var (
 	outputFile          = flag.String("output", "", "Output file path (optional, defaults to input_translated.ext or resource pack)")
 	targetLang          = flag.String("lang", "ja", "Target language code (default: ja)")
 	engine              = flag.String("engine", "openai", "Translation engine: openai, google, deepl (default: openai)")
+	minecraftVersion    = flag.String("minecraft-version", "1.20", "Minecraft version for locale formatting (e.g., 1.10.2, 1.11, 1.20)")
 	dryRun              = flag.Bool("dry-run", false, "Parse file and show statistics without translating")
 	similarityThreshold = flag.Float64("similarity", 0.6, "Similarity threshold for finding similar examples (0.0-1.0, default: 0.6)")
 	extractOnly         = flag.Bool("extract-only", false, "Extract language files from JAR without translating")
@@ -42,11 +43,12 @@ func main() {
 	fmt.Printf("Input type: %s\n", inputType.String())
 	fmt.Printf("Target Language: %s\n", *targetLang)
 	fmt.Printf("Engine: %s\n", *engine)
+	fmt.Printf("Minecraft Version: %s\n", *minecraftVersion)
 
 	fmt.Printf("Output: %s\n", *outputFile)
 
 	// Process the input
-	if err := processors.ProcessInput(inputType, *inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *similarityThreshold, *batchSize); err != nil {
+	if err := processors.ProcessInput(inputType, *inputFile, *outputFile, *targetLang, *engine, *minecraftVersion, *dryRun, *extractOnly, *similarityThreshold, *batchSize); err != nil {
 		fmt.Fprintf(os.Stderr, "Error processing %s: %v\n", inputType.String(), err)
 		os.Exit(1)
 	}

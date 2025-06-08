@@ -17,6 +17,18 @@ This is an early-stage project with only basic Go module initialization complete
 - `go mod tidy` - Clean up module dependencies
 - `go build` - Build the application
 
+### Current CLI Usage
+- `./localizer -input [path] -lang [locale]` - Basic translation
+- `./localizer -input [path] -minecraft-version [version] -lang [locale]` - Version-aware locale formatting
+- `./localizer -input [path] -dry-run` - Preview without translating
+- `./localizer -input [path] -extract-only` - Extract without translating
+
+### Locale Code Formatting
+The application now supports version-aware locale code generation:
+- **Minecraft 1.11+**: Uses lowercase format (e.g., `ja_jp.json`, `ja_jp.lang`)
+- **Minecraft 1.10.2 and earlier**: Uses mixed-case format (e.g., `ja_JP.json`, `ja_JP.lang`)
+- Use `--minecraft-version` flag to specify target version (default: 1.20)
+
 ### Future Wails Commands (after Wails initialization)
 - `wails dev` - Run development server with hot reload
 - `wails build` - Build production application for current platform

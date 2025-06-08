@@ -11,7 +11,7 @@ import (
 	"github.com/grtw2116/MinecraftModsLocalizer/pkg/translators"
 )
 
-func ProcessBetterQuestingFile(inputPath, outputPath, targetLang, engine string, dryRun bool, similarityThreshold float64, batchSize int) error {
+func ProcessBetterQuestingFile(inputPath, outputPath, targetLang, engine, minecraftVersion string, dryRun bool, similarityThreshold float64, batchSize int) error {
 	fmt.Printf("Processing BetterQuesting file: %s\n", inputPath)
 
 	// Try to extract translations directly using NBT format first

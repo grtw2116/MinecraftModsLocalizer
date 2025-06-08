@@ -96,7 +96,7 @@ func extractSingleLanguageFile(file *zip.File) (JARLanguageFile, error) {
 	}, nil
 }
 
-func ProcessJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
+func ProcessJARFile(jarPath, outputPath, targetLang, engine, minecraftVersion string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
 	fmt.Printf("Processing JAR file: %s\n", jarPath)
 
 	// Extract language files
@@ -122,7 +122,8 @@ func ProcessJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extr
 		fmt.Println("\nDry run mode - would translate the following files:")
 		for _, lf := range langFiles {
 			if isSourceLanguage(lf.Language) {
-				fmt.Printf("  %s -> %s_%s%s\n", lf.Path, lf.Language, targetLang, parsers.GetExtensionForFormat(lf.Format))
+				formattedLang := parsers.FormatLocaleCode(targetLang, minecraftVersion)
+				fmt.Printf("  %s -> %s%s\n", lf.Path, formattedLang, parsers.GetExtensionForFormat(lf.Format))
 			}
 		}
 		return nil
@@ -156,9 +157,10 @@ func ProcessJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extr
 			return fmt.Errorf("error translating %s: %v", sourceFile.Path, err)
 		}
 
+		formattedLang := parsers.FormatLocaleCode(targetLang, minecraftVersion)
 		translatedFile := JARLanguageFile{
-			Path:     strings.Replace(sourceFile.Path, sourceFile.Language, targetLang, 1),
-			Language: targetLang,
+			Path:     strings.Replace(sourceFile.Path, sourceFile.Language, formattedLang, 1),
+			Language: formattedLang,
 			Data:     translatedData,
 			Format:   sourceFile.Format,
 		}
@@ -273,7 +275,7 @@ func generateResourcePack(translatedFiles []JARLanguageFile, outputPath, targetL
 		}
 
 		namespace := parts[assetsIndex+1]
-		resourcePackPath := filepath.Join(outputPath, "assets", namespace, "lang", fmt.Sprintf("%s%s", targetLang, parsers.GetExtensionForFormat(tf.Format)))
+		resourcePackPath := filepath.Join(outputPath, "localization", "assets", namespace, "lang", fmt.Sprintf("%s%s", tf.Language, parsers.GetExtensionForFormat(tf.Format)))
 
 		// Create directory
 		if err := os.MkdirAll(filepath.Dir(resourcePackPath), 0755); err != nil {

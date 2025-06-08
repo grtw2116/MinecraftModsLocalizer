@@ -55,6 +55,116 @@ func TestGetExtensionForFormat(t *testing.T) {
 	}
 }
 
+func TestFormatLocaleCode(t *testing.T) {
+	tests := []struct {
+		localeCode       string
+		minecraftVersion string
+		expected         string
+	}{
+		{"ja_jp", "1.20", "ja_jp"},
+		{"JA_JP", "1.20", "ja_jp"},
+		{"zh_cn", "1.16", "zh_cn"},
+		{"en_us", "1.12", "en_us"},
+		{"ja_jp", "1.10.2", "ja_JP"},
+		{"JA_JP", "1.10.2", "ja_JP"},
+		{"zh_cn", "1.9", "zh_CN"},
+		{"en_us", "1.8.9", "en_US"},
+		{"ja_jp", "1.7.10", "ja_JP"},
+		{"simple", "1.20", "simple"},
+		{"simple", "1.10.2", "simple"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.localeCode+"_"+tt.minecraftVersion, func(t *testing.T) {
+			result := FormatLocaleCode(tt.localeCode, tt.minecraftVersion)
+			if result != tt.expected {
+				t.Errorf("FormatLocaleCode(%s, %s) = %s, want %s", tt.localeCode, tt.minecraftVersion, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsLegacyMinecraftVersion(t *testing.T) {
+	tests := []struct {
+		version  string
+		expected bool
+	}{
+		{"1.7", true},
+		{"1.7.2", true},
+		{"1.7.10", true},
+		{"1.8", true},
+		{"1.8.8", true},
+		{"1.8.9", true},
+		{"1.9", true},
+		{"1.9.4", true},
+		{"1.10", true},
+		{"1.10.1", true},
+		{"1.10.2", true},
+		{"1.11", false},
+		{"1.11.1", false},
+		{"1.11.2", false},
+		{"1.12", false},
+		{"1.12.1", false},
+		{"1.12.2", false},
+		{"1.13", false},
+		{"1.16", false},
+		{"1.20", false},
+		{"1.21", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			result := IsLegacyMinecraftVersion(tt.version)
+			if result != tt.expected {
+				t.Errorf("IsLegacyMinecraftVersion(%s) = %v, want %v", tt.version, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFormatModernLocaleCode(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"ja_jp", "ja_jp"},
+		{"JA_JP", "ja_jp"},
+		{"zh_cn", "zh_cn"},
+		{"EN_US", "en_us"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := FormatModernLocaleCode(tt.input)
+			if result != tt.expected {
+				t.Errorf("FormatModernLocaleCode(%s) = %s, want %s", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFormatLegacyLocaleCode(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"ja_jp", "ja_JP"},
+		{"JA_JP", "ja_JP"},
+		{"zh_cn", "zh_CN"},
+		{"EN_US", "en_US"},
+		{"simple", "simple"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := FormatLegacyLocaleCode(tt.input)
+			if result != tt.expected {
+				t.Errorf("FormatLegacyLocaleCode(%s) = %s, want %s", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestFileFormatString(t *testing.T) {
 	tests := []struct {
 		format   FileFormat
