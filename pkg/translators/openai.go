@@ -75,12 +75,21 @@ func (t *OpenAITranslator) TranslateBatch(texts []string, targetLang string) ([]
 }
 
 func (t *OpenAITranslator) TranslateBatchWithSize(texts []string, targetLang string, batchSize int) ([]BatchTranslationResult, error) {
+	return t.TranslateBatchWithKeys(nil, texts, targetLang, batchSize)
+}
+
+func (t *OpenAITranslator) TranslateBatchWithKeys(keys, texts []string, targetLang string, batchSize int) ([]BatchTranslationResult, error) {
 	if t.APIKey == "" {
 		return nil, fmt.Errorf("API key not found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")
 	}
 
 	if batchSize <= 0 {
 		batchSize = 1
+	}
+
+	// If keys are provided, they should match the number of texts
+	if keys != nil && len(keys) != len(texts) {
+		return nil, fmt.Errorf("number of keys (%d) must match number of texts (%d)", len(keys), len(texts))
 	}
 
 	var results []BatchTranslationResult
@@ -91,12 +100,18 @@ func (t *OpenAITranslator) TranslateBatchWithSize(texts []string, targetLang str
 			currentBatchSize = len(texts)
 		}
 
-		batch := texts[:currentBatchSize]
+		textBatch := texts[:currentBatchSize]
 		texts = texts[currentBatchSize:]
 
-		batchResults, err := t.translateBatchChunk(batch, targetLang)
+		var keyBatch []string
+		if keys != nil {
+			keyBatch = keys[:currentBatchSize]
+			keys = keys[currentBatchSize:]
+		}
+
+		batchResults, err := t.translateBatchChunk(keyBatch, textBatch, targetLang)
 		if err != nil {
-			for _, text := range batch {
+			for _, text := range textBatch {
 				results = append(results, BatchTranslationResult{
 					Input:   text,
 					Output:  text,
@@ -138,19 +153,37 @@ func (t *OpenAITranslator) TranslateBatchWithSize(texts []string, targetLang str
 	return results, nil
 }
 
-func (t *OpenAITranslator) translateBatchChunk(texts []string, targetLang string) ([]BatchTranslationResult, error) {
+func (t *OpenAITranslator) translateBatchChunk(keys, texts []string, targetLang string) ([]BatchTranslationResult, error) {
 	var textList strings.Builder
-	for i, text := range texts {
-		textList.WriteString(fmt.Sprintf("%d. %s\n", i+1, text))
-	}
+	var prompt string
+	
+	if keys != nil && len(keys) == len(texts) {
+		// Format as key-value pairs
+		for i, text := range texts {
+			textList.WriteString(fmt.Sprintf("%d. \"%s\": \"%s\"\n", i+1, keys[i], text))
+		}
+		
+		prompt = fmt.Sprintf(`Translate the following Minecraft mod key-value pairs from English to %s. Keep translations natural and appropriate for gaming context. Only translate the VALUES (after the colon), keep the KEYS unchanged.
 
-	prompt := fmt.Sprintf(`Translate the following Minecraft mod texts from English to %s. Keep translations natural and appropriate for gaming context.
+Please respond with the translated key-value pairs in the same numbered format:
+
+%s
+
+Return the translations in the exact same numbered format (1., 2., etc.), with keys unchanged and only values translated.`, parsers.GetLanguageNameForPrompt(targetLang), textList.String())
+	} else {
+		// Fallback to text-only format
+		for i, text := range texts {
+			textList.WriteString(fmt.Sprintf("%d. %s\n", i+1, text))
+		}
+		
+		prompt = fmt.Sprintf(`Translate the following Minecraft mod texts from English to %s. Keep translations natural and appropriate for gaming context.
 
 Please respond with ONLY the translated texts in the same numbered format:
 
 %s
 
 Return the translations in the exact same numbered format (1., 2., etc.), one per line.`, parsers.GetLanguageNameForPrompt(targetLang), textList.String())
+	}
 
 	reqBody := OpenAIRequest{
 		Model: t.Model,
@@ -197,10 +230,10 @@ Return the translations in the exact same numbered format (1., 2., etc.), one pe
 		return nil, fmt.Errorf("no translation received")
 	}
 
-	return t.parseBatchResponse(texts, strings.TrimSpace(openaiResp.Choices[0].Message.Content))
+	return t.parseBatchResponse(keys, texts, strings.TrimSpace(openaiResp.Choices[0].Message.Content))
 }
 
-func (t *OpenAITranslator) parseBatchResponse(inputs []string, response string) ([]BatchTranslationResult, error) {
+func (t *OpenAITranslator) parseBatchResponse(keys, inputs []string, response string) ([]BatchTranslationResult, error) {
 	lines := strings.Split(response, "\n")
 	var results []BatchTranslationResult
 
@@ -213,8 +246,32 @@ func (t *OpenAITranslator) parseBatchResponse(inputs []string, response string) 
 			line := strings.TrimSpace(lines[i])
 			numberPrefix := fmt.Sprintf("%d.", i+1)
 			if strings.HasPrefix(line, numberPrefix) {
-				output = strings.TrimSpace(line[len(numberPrefix):])
-				isValid = output != "" && output != input
+				lineContent := strings.TrimSpace(line[len(numberPrefix):])
+				
+				// Check if we have keys (key-value format) or just text
+				if keys != nil && len(keys) == len(inputs) {
+					// Parse key-value format: "key": "translated_value"
+					colonIndex := strings.Index(lineContent, ":")
+					if colonIndex > 0 {
+						// Extract the value part after the colon
+						valuePart := strings.TrimSpace(lineContent[colonIndex+1:])
+						// Remove surrounding quotes if present
+						if len(valuePart) >= 2 && valuePart[0] == '"' && valuePart[len(valuePart)-1] == '"' {
+							output = valuePart[1 : len(valuePart)-1]
+						} else {
+							output = valuePart
+						}
+						isValid = output != "" && output != input
+					} else {
+						// Fallback: treat as plain text if parsing fails
+						output = lineContent
+						isValid = output != "" && output != input
+					}
+				} else {
+					// Plain text format
+					output = lineContent
+					isValid = output != "" && output != input
+				}
 			} else {
 				output = input
 				isValid = false

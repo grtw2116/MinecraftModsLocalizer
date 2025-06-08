@@ -238,7 +238,8 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 
 		if len(pendingTexts) > 0 {
 			if openaiTranslator, ok := translator.(*OpenAITranslator); ok {
-				batchResults, err := openaiTranslator.TranslateBatchWithSize(pendingTexts, targetLang, batchSize)
+				// Use the new method that accepts keys for key-value pairs in prompts
+				batchResults, err := openaiTranslator.TranslateBatchWithKeys(pendingKeys, pendingTexts, targetLang, batchSize)
 				if err != nil {
 					return nil, fmt.Errorf("batch translation failed: %v", err)
 				}
