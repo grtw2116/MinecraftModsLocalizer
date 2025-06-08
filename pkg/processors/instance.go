@@ -118,10 +118,6 @@ func findJARFiles(modsPath string) ([]string, error) {
 	return jarFiles, nil
 }
 
-func isLanguageFile(filename string) bool {
-	ext := strings.ToLower(filepath.Ext(filename))
-	return ext == ".json" || ext == ".lang" || ext == ".snbt"
-}
 
 func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
 	fmt.Printf("Processing Minecraft instance: %s\n", instancePath)

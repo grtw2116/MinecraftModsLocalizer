@@ -1,7 +1,10 @@
 package processors
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/grtw2116/MinecraftModsLocalizer/pkg/parsers"
 )
@@ -30,11 +33,6 @@ func (it InputType) String() string {
 	default:
 		return "Unknown"
 	}
-}
-
-// InputProcessor defines the interface for processing different input types
-type InputProcessor interface {
-	Process(inputPath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error
 }
 
 // DetectInputType determines the type of input based on the path
@@ -68,18 +66,30 @@ func DetectInputType(inputPath string) InputType {
 	return InputTypeUnknown
 }
 
-// CreateProcessor creates the appropriate processor for the given input type
-func CreateProcessor(inputType InputType) InputProcessor {
+// IsJARFile checks if a file is a JAR file based on its extension
+func IsJARFile(filename string) bool {
+	return strings.ToLower(filepath.Ext(filename)) == ".jar"
+}
+
+// isLanguageFile checks if a file is a language file (.json, .lang, .snbt)
+func isLanguageFile(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	return ext == ".json" || ext == ".lang" || ext == ".snbt"
+}
+
+// ProcessInput processes the input based on its detected type
+func ProcessInput(inputType InputType, inputPath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
 	switch inputType {
 	case InputTypeLanguageFile:
-		return &LanguageFileProcessor{}
+		return ProcessLanguageFile(inputPath, outputPath, targetLang, engine, dryRun, similarityThreshold, batchSize)
 	case InputTypeJARFile:
-		return &JARFileProcessor{}
+		return ProcessJARFile(inputPath, outputPath, targetLang, engine, dryRun, extractOnly, resourcePack, similarityThreshold, batchSize)
 	case InputTypeBetterQuesting:
-		return &BetterQuestingProcessor{}
+		return ProcessBetterQuestingFile(inputPath, outputPath, targetLang, engine, dryRun, similarityThreshold, batchSize)
 	case InputTypeMinecraftInstance:
-		return &MinecraftInstanceProcessor{}
+		return ProcessMinecraftInstance(inputPath, outputPath, targetLang, engine, dryRun, extractOnly, resourcePack, similarityThreshold, batchSize)
 	default:
-		return nil
+		return fmt.Errorf("unsupported input type: %s", inputType.String())
 	}
 }
+

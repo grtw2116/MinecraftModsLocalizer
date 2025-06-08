@@ -49,15 +49,8 @@ func main() {
 	}
 	fmt.Printf("Output: %s\n", *outputFile)
 
-	// Create appropriate processor
-	processor := processors.CreateProcessor(inputType)
-	if processor == nil {
-		fmt.Fprintf(os.Stderr, "Error: No processor available for input type: %s\n", inputType.String())
-		os.Exit(1)
-	}
-
 	// Process the input
-	if err := processor.Process(*inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *resourcePack, *similarityThreshold, *batchSize); err != nil {
+	if err := processors.ProcessInput(inputType, *inputFile, *outputFile, *targetLang, *engine, *dryRun, *extractOnly, *resourcePack, *similarityThreshold, *batchSize); err != nil {
 		fmt.Fprintf(os.Stderr, "Error processing %s: %v\n", inputType.String(), err)
 		os.Exit(1)
 	}

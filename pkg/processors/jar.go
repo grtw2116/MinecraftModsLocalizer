@@ -19,9 +19,6 @@ type JARLanguageFile struct {
 	Format   parsers.FileFormat
 }
 
-func IsJARFile(filename string) bool {
-	return strings.ToLower(filepath.Ext(filename)) == ".jar"
-}
 
 func ExtractLanguageFiles(jarPath string) ([]JARLanguageFile, error) {
 	reader, err := zip.OpenReader(jarPath)

@@ -7,10 +7,8 @@ import (
 	"github.com/grtw2116/MinecraftModsLocalizer/pkg/translators"
 )
 
-// LanguageFileProcessor handles individual language files (.json, .lang, .snbt)
-type LanguageFileProcessor struct{}
-
-func (p *LanguageFileProcessor) Process(inputPath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
+// ProcessLanguageFile handles individual language files (.json, .lang, .snbt)
+func ProcessLanguageFile(inputPath, outputPath, targetLang, engine string, dryRun bool, similarityThreshold float64, batchSize int) error {
 	fmt.Printf("Processing language file: %s\n", inputPath)
 
 	// Parse input file
