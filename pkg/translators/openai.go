@@ -9,6 +9,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/grtw2116/MinecraftModsLocalizer/pkg/parsers"
 )
 
 type OpenAITranslator struct {
@@ -148,7 +150,7 @@ Please respond with ONLY the translated texts in the same numbered format:
 
 %s
 
-Return the translations in the exact same numbered format (1., 2., etc.), one per line.`, getLanguageName(targetLang), textList.String())
+Return the translations in the exact same numbered format (1., 2., etc.), one per line.`, parsers.GetLanguageNameForPrompt(targetLang), textList.String())
 
 	reqBody := OpenAIRequest{
 		Model: t.Model,
@@ -240,7 +242,7 @@ func (t *OpenAITranslator) TranslateWithExamples(text, targetLang string, exampl
 		return "", fmt.Errorf("API key not found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")
 	}
 
-	prompt := fmt.Sprintf(`Translate the following Minecraft mod text from English to %s. Keep the translation natural and appropriate for gaming context.`, getLanguageName(targetLang))
+	prompt := fmt.Sprintf(`Translate the following Minecraft mod text from English to %s. Keep the translation natural and appropriate for gaming context.`, parsers.GetLanguageNameForPrompt(targetLang))
 
 	if len(examples) > 0 {
 		prompt += "\n\nHere are some similar translation examples for reference:\n"
@@ -308,22 +310,3 @@ Only return the translated text, nothing else.`, text)
 	return strings.TrimSpace(openaiResp.Choices[0].Message.Content), nil
 }
 
-func getLanguageName(code string) string {
-	langMap := map[string]string{
-		"ja":    "Japanese",
-		"ko":    "Korean",
-		"zh-cn": "Simplified Chinese",
-		"zh-tw": "Traditional Chinese",
-		"fr":    "French",
-		"de":    "German",
-		"es":    "Spanish",
-		"it":    "Italian",
-		"pt":    "Portuguese",
-		"ru":    "Russian",
-	}
-
-	if name, exists := langMap[strings.ToLower(code)]; exists {
-		return name
-	}
-	return code // Return the code itself if not found
-}

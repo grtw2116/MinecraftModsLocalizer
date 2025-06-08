@@ -28,22 +28,22 @@ go build -o MinecraftModsLocalizer ./cmd
 ### Basic Translation
 ```bash
 # Translate a JSON language file
-./MinecraftModsLocalizer -input en_us.json -lang ja
+./MinecraftModsLocalizer -input en_us.json -lang ja_jp
 
 # Translate with custom similarity threshold
-./MinecraftModsLocalizer -input en_us.json -lang ja -similarity 0.8
+./MinecraftModsLocalizer -input en_us.json -lang ja_jp -similarity 0.8
 ```
 
 ### JAR File Processing
 ```bash
+# Translate JAR and generate resource pack
+./MinecraftModsLocalizer -input mod.jar -lang ja_jp
+
 # Extract language files from a mod JAR
 ./MinecraftModsLocalizer -input mod.jar -extract-only
 
-# Translate JAR and generate resource pack
-./MinecraftModsLocalizer -input mod.jar -lang ja -resource-pack
-
 # Dry run to see what would be translated
-./MinecraftModsLocalizer -input mod.jar -lang ja -dry-run
+./MinecraftModsLocalizer -input mod.jar -lang ja_jp -dry-run
 ```
 
 ### Command Line Options
@@ -113,7 +113,7 @@ The tool automatically builds a translation dictionary (`dictionary.json`) to en
 
 ### Translating a Single Language File
 ```bash
-./MinecraftModsLocalizer -input assets/mymod/lang/en_us.json -lang ja -engine openai
+./MinecraftModsLocalizer -input assets/mymod/lang/en_us.json -lang ja_jp -engine openai
 ```
 
 ### Processing Multiple Mods
@@ -122,8 +122,8 @@ The tool automatically builds a translation dictionary (`dictionary.json`) to en
 ./MinecraftModsLocalizer -input mod1.jar -extract-only -output extracted/
 
 # Translate and create resource packs
-./MinecraftModsLocalizer -input mod1.jar -lang ja -resource-pack -output resourcepack_ja/
-./MinecraftModsLocalizer -input mod2.jar -lang ja -resource-pack -output resourcepack_ja/
+./MinecraftModsLocalizer -input mod1.jar -lang ja_jp -resource-pack -output resourcepack_ja/
+./MinecraftModsLocalizer -input mod2.jar -lang ja_jp -resource-pack -output resourcepack_ja/
 ```
 
 ### Resource Pack Structure
