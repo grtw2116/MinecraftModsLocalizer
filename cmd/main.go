@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/grtw2116/MinecraftModsLocalizer/pkg/logger"
 	"github.com/grtw2116/MinecraftModsLocalizer/pkg/parsers"
 	"github.com/grtw2116/MinecraftModsLocalizer/pkg/processors"
 )
@@ -19,11 +20,15 @@ var (
 	similarityThreshold = flag.Float64("similarity", 0.6, "Similarity threshold for finding similar examples (0.0-1.0, default: 0.6)")
 	extractOnly         = flag.Bool("extract-only", false, "Extract language files from JAR without translating")
 	batchSize           = flag.Int("batch-size", 1, "Number of texts to translate per API request (default: 1 for individual processing, 10+ for batch processing)")
+	debug               = flag.Bool("debug", false, "Enable debug logging")
 	help                = flag.Bool("help", false, "Show help")
 )
 
 func main() {
 	flag.Parse()
+
+	// Setup debug logging
+	logger.SetDebugEnabled(*debug)
 
 	if *help || *inputFile == "" {
 		showUsage()
@@ -32,9 +37,11 @@ func main() {
 
 	fmt.Printf("MinecraftModsLocalizer CLI\n")
 	fmt.Printf("Input: %s\n", *inputFile)
+	logger.Debug("Processing input file: %s", *inputFile)
 
 	// Detect input type
 	inputType := processors.DetectInputType(*inputFile)
+	logger.Debug("Detected input type: %s", inputType.String())
 	if inputType == processors.InputTypeUnknown {
 		fmt.Fprintf(os.Stderr, "Error: Unable to determine input type for: %s\n", *inputFile)
 		fmt.Fprintf(os.Stderr, "Supported inputs: Minecraft instance directories, .jar files, .json/.lang/.snbt files, BetterQuesting files\n")
@@ -43,6 +50,7 @@ func main() {
 
 	fmt.Printf("Input type: %s\n", inputType.String())
 	// Validate target language
+	logger.Debug("Validating target language: %s", *targetLang)
 	if !parsers.ValidateLanguageCode(*targetLang) {
 		fmt.Fprintf(os.Stderr, "Error: Unsupported language code: %s\n", *targetLang)
 		fmt.Fprintf(os.Stderr, "Use 'localizer -help' to see supported languages\n")
@@ -50,6 +58,7 @@ func main() {
 	}
 
 	// Format language code for the specified Minecraft version
+	logger.Debug("Formatting language code for Minecraft version: %s", *minecraftVersion)
 	formattedLang, err := parsers.FormatLanguageCodeForVersion(*targetLang, *minecraftVersion)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error formatting language code: %v\n", err)
@@ -60,14 +69,20 @@ func main() {
 	fmt.Printf("Target Language: %s (%s)\n", formattedLang, langInfo.English)
 	fmt.Printf("Engine: %s\n", *engine)
 	fmt.Printf("Minecraft Version: %s\n", *minecraftVersion)
+	logger.Debug("Using translation engine: %s", *engine)
+	logger.Debug("Batch size: %d", *batchSize)
+	logger.Debug("Similarity threshold: %.2f", *similarityThreshold)
 
 	fmt.Printf("Output: %s\n", *outputFile)
 
 	// Process the input
+	logger.Debug("Starting processing with options - dry-run: %t, extract-only: %t", *dryRun, *extractOnly)
 	if err := processors.ProcessInput(inputType, *inputFile, *outputFile, formattedLang, *engine, *minecraftVersion, *dryRun, *extractOnly, *similarityThreshold, *batchSize); err != nil {
+		logger.Debug("Processing failed: %v", err)
 		fmt.Fprintf(os.Stderr, "Error processing %s: %v\n", inputType.String(), err)
 		os.Exit(1)
 	}
+	logger.Debug("Processing completed successfully")
 }
 
 func showUsage() {

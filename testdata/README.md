@@ -22,7 +22,7 @@ This directory contains test files for MinecraftModsLocalizer.
 
 ### Test Individual File Translation
 ```bash
-./MinecraftModsLocalizer -input testdata/test_en_us.json -lang ja -dry-run
+./MinecraftModsLocalizer -input testdata/test_en_us.json -lang ja_jp -dry-run
 ```
 
 ### Test JAR Processing

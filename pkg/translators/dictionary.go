@@ -244,15 +244,27 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 					return nil, fmt.Errorf("batch translation failed: %v", err)
 				}
 
-				for i, batchResult := range batchResults {
-					if i < len(pendingKeys) {
-						key := pendingKeys[i]
-						if batchResult.IsValid {
-							result[key] = batchResult.Output
-							dict.AddTerm(pendingValues[i], targetLang, batchResult.Output)
+				// Create a map of input text to translation result
+				resultMap := make(map[string]BatchTranslationResult)
+				for _, batchResult := range batchResults {
+					resultMap[batchResult.Input] = batchResult
+				}
+
+				// Process results in the same order as pendingKeys
+				for i, key := range pendingKeys {
+					if i < len(pendingValues) {
+						value := pendingValues[i]
+						if batchResult, found := resultMap[value]; found {
+							if batchResult.IsValid {
+								result[key] = batchResult.Output
+								dict.AddTerm(value, targetLang, batchResult.Output)
+							} else {
+								fmt.Printf("\nWarning: Failed to translate '%s': %s\n", key, batchResult.Error)
+								result[key] = value
+							}
 						} else {
-							fmt.Printf("\nWarning: Failed to translate '%s': %s\n", key, batchResult.Error)
-							result[key] = pendingValues[i]
+							fmt.Printf("\nWarning: No translation result found for '%s'\n", key)
+							result[key] = value
 						}
 						count++
 						showProgress(count, total, startTime)

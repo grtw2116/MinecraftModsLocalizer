@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/grtw2116/MinecraftModsLocalizer/pkg/logger"
 	"github.com/grtw2116/MinecraftModsLocalizer/pkg/parsers"
 )
 
@@ -185,6 +186,8 @@ Please respond with ONLY the translated texts in the same numbered format:
 Return the translations in the exact same numbered format (1., 2., etc.), one per line.`, parsers.GetLanguageNameForPrompt(targetLang), textList.String())
 	}
 
+	logger.Debug("Batch translation prompt for %d texts:\n%s", len(texts), prompt)
+
 	reqBody := OpenAIRequest{
 		Model: t.Model,
 		Messages: []Message{
@@ -230,7 +233,10 @@ Return the translations in the exact same numbered format (1., 2., etc.), one pe
 		return nil, fmt.Errorf("no translation received")
 	}
 
-	return t.parseBatchResponse(keys, texts, strings.TrimSpace(openaiResp.Choices[0].Message.Content))
+	response := strings.TrimSpace(openaiResp.Choices[0].Message.Content)
+	logger.Debug("Batch translation response:\n%s", response)
+
+	return t.parseBatchResponse(keys, texts, response)
 }
 
 func (t *OpenAITranslator) parseBatchResponse(keys, inputs []string, response string) ([]BatchTranslationResult, error) {
@@ -319,6 +325,8 @@ Text to translate: %s
 
 Only return the translated text, nothing else.`, text)
 
+	logger.Debug("Single translation prompt:\n%s", prompt)
+
 	reqBody := OpenAIRequest{
 		Model: t.Model,
 		Messages: []Message{
@@ -364,6 +372,9 @@ Only return the translated text, nothing else.`, text)
 		return "", fmt.Errorf("no translation received")
 	}
 
-	return strings.TrimSpace(openaiResp.Choices[0].Message.Content), nil
+	response := strings.TrimSpace(openaiResp.Choices[0].Message.Content)
+	logger.Debug("Single translation response: %s", response)
+
+	return response, nil
 }
 
