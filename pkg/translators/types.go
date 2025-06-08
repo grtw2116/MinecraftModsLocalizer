@@ -75,5 +75,5 @@ func ValidateBatchResults(inputs []string, results []BatchTranslationResult) *Va
 }
 
 func TranslateData(data parsers.TranslationData, translator Translator, targetLang string) (parsers.TranslationData, error) {
-	return TranslateDataWithSimilarity(data, translator, targetLang, 0.6)
+	return TranslateDataWithSimilarity(data, translator, targetLang, 0.6, 1)
 }

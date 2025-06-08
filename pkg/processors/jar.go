@@ -100,7 +100,7 @@ func extractSingleLanguageFile(file *zip.File) (JARLanguageFile, error) {
 	}, nil
 }
 
-func ProcessJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64) error {
+func ProcessJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
 	fmt.Printf("Processing JAR file: %s\n", jarPath)
 	
 	// Extract language files
@@ -155,7 +155,7 @@ func ProcessJARFile(jarPath, outputPath, targetLang, engine string, dryRun, extr
 	for _, sourceFile := range sourceFiles {
 		fmt.Printf("\nTranslating %s...\n", sourceFile.Path)
 		
-		translatedData, err := translators.TranslateDataWithSimilarity(sourceFile.Data, translator, targetLang, similarityThreshold)
+		translatedData, err := translators.TranslateDataWithSimilarity(sourceFile.Data, translator, targetLang, similarityThreshold, batchSize)
 		if err != nil {
 			return fmt.Errorf("error translating %s: %v", sourceFile.Path, err)
 		}

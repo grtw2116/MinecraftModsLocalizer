@@ -123,7 +123,7 @@ func isLanguageFile(filename string) bool {
 	return ext == ".json" || ext == ".lang" || ext == ".snbt"
 }
 
-func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64) error {
+func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine string, dryRun, extractOnly, resourcePack bool, similarityThreshold float64, batchSize int) error {
 	fmt.Printf("Processing Minecraft instance: %s\n", instancePath)
 
 	// Detect and validate the Minecraft instance
@@ -187,7 +187,7 @@ func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine strin
 			fmt.Printf("\n=== Processing BetterQuesting %d/%d: %s ===\n", i+1, len(bqFiles), filepath.Base(bqFile))
 			
 			bqOutputFile := filepath.Join(bqOutputPath, fmt.Sprintf("%s_%s", targetLang, filepath.Base(bqFile)))
-			if err := ProcessBetterQuestingFile(bqFile, bqOutputFile, targetLang, engine, false, similarityThreshold); err != nil {
+			if err := ProcessBetterQuestingFile(bqFile, bqOutputFile, targetLang, engine, false, similarityThreshold, batchSize); err != nil {
 				fmt.Printf("Warning: Failed to process %s: %v\n", filepath.Base(bqFile), err)
 				continue
 			}
@@ -212,7 +212,7 @@ func ProcessMinecraftInstance(instancePath, outputPath, targetLang, engine strin
 			}
 		} else {
 			// Process for translation
-			translatedFiles, err := processSingleJARForTranslation(jarFile, targetLang, engine, similarityThreshold)
+			translatedFiles, err := processSingleJARForTranslation(jarFile, targetLang, engine, similarityThreshold, batchSize)
 			if err != nil {
 				fmt.Printf("Warning: Failed to process %s: %v\n", filepath.Base(jarFile), err)
 				continue
@@ -288,7 +288,7 @@ func processSingleJARForExtraction(jarPath, outputPath string) error {
 	return extractLanguageFilesToDirectory(langFiles, outputPath)
 }
 
-func processSingleJARForTranslation(jarPath, targetLang, engine string, similarityThreshold float64) ([]JARLanguageFile, error) {
+func processSingleJARForTranslation(jarPath, targetLang, engine string, similarityThreshold float64, batchSize int) ([]JARLanguageFile, error) {
 	langFiles, err := ExtractLanguageFiles(jarPath)
 	if err != nil {
 		return nil, err
@@ -322,7 +322,7 @@ func processSingleJARForTranslation(jarPath, targetLang, engine string, similari
 	for _, sourceFile := range sourceFiles {
 		fmt.Printf("  Translating %s (%d keys)\n", sourceFile.Language, len(sourceFile.Data))
 		
-		translatedData, err := translators.TranslateDataWithSimilarity(sourceFile.Data, translator, targetLang, similarityThreshold)
+		translatedData, err := translators.TranslateDataWithSimilarity(sourceFile.Data, translator, targetLang, similarityThreshold, batchSize)
 		if err != nil {
 			return nil, err
 		}
