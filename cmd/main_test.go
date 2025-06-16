@@ -118,28 +118,28 @@ func TestMainFlags(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		args         []string
+		name           string
+		args           []string
 		expectInOutput []string
 	}{
 		{
-			name: "Custom target language",
-			args: []string{"-input", testFile, "-lang", "ko", "-dry-run"},
+			name:           "Custom target language",
+			args:           []string{"-input", testFile, "-lang", "ko_kr", "-dry-run"},
 			expectInOutput: []string{"Target Language: ko"},
 		},
 		{
-			name: "Custom engine",
-			args: []string{"-input", testFile, "-engine", "google", "-dry-run"},
+			name:           "Custom engine",
+			args:           []string{"-input", testFile, "-engine", "google", "-dry-run"},
 			expectInOutput: []string{"Engine: google"},
 		},
 		{
-			name: "Custom batch size",
-			args: []string{"-input", testFile, "-batch-size", "5", "-dry-run"},
+			name:           "Custom batch size",
+			args:           []string{"-input", testFile, "-batch-size", "5", "-dry-run"},
 			expectInOutput: []string{"MinecraftModsLocalizer CLI"},
 		},
 		{
-			name: "Custom similarity threshold",
-			args: []string{"-input", testFile, "-similarity", "0.8", "-dry-run"},
+			name:           "Custom similarity threshold",
+			args:           []string{"-input", testFile, "-similarity", "0.8", "-dry-run"},
 			expectInOutput: []string{"MinecraftModsLocalizer CLI"},
 		},
 	}
@@ -185,7 +185,7 @@ func TestApplicationIntegration(t *testing.T) {
 		"item.test.sword":  "Test Sword",
 		"block.test.stone": "Test Stone",
 	}
-	
+
 	testFile := filepath.Join(tmpDir, "test_input.json")
 	jsonData, _ := json.Marshal(testData)
 	if err := os.WriteFile(testFile, jsonData, 0644); err != nil {
@@ -218,3 +218,4 @@ func TestApplicationIntegration(t *testing.T) {
 		}
 	})
 }
+
