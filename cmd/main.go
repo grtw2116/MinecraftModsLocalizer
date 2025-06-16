@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/grtw2116/MinecraftModsLocalizer/pkg/logger"
-	"github.com/grtw2116/MinecraftModsLocalizer/pkg/parsers"
-	"github.com/grtw2116/MinecraftModsLocalizer/pkg/processors"
+	"github.com/grtw2116/MinecraftModsLocalizer/internal/logger"
+	"github.com/grtw2116/MinecraftModsLocalizer/internal/parsers"
+	"github.com/grtw2116/MinecraftModsLocalizer/internal/processors"
 )
 
 var (
