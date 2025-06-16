@@ -13,7 +13,7 @@ type BatchResultCallback func(results []BatchTranslationResult)
 
 type Translator interface {
 	Translate(text, targetLang string) (string, error)
-	TranslateBatch(texts []string, targetLang string) ([]BatchTranslationResult, error)
+	TranslateBatch(texts []string, targetLang string, config *BatchConfig) ([]BatchTranslationResult, error)
 }
 
 type BatchTranslationResult struct {

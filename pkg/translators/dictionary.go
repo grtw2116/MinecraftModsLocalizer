@@ -259,7 +259,13 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 					}
 				}
 				
-				batchResults, err := openaiTranslator.TranslateBatchWithKeysProgressAndCallback(pendingKeys, pendingTexts, targetLang, batchSize, progressCallback, batchResultCallback)
+				config := &BatchConfig{
+					Keys:             pendingKeys,
+					BatchSize:        batchSize,
+					ProgressCallback: progressCallback,
+					BatchCallback:    batchResultCallback,
+				}
+				batchResults, err := openaiTranslator.TranslateBatch(pendingTexts, targetLang, config)
 				if err != nil {
 					return nil, fmt.Errorf("batch translation failed: %v", err)
 				}
@@ -291,19 +297,29 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 					}
 				}
 			} else {
-				// Fallback to individual processing for non-OpenAI translators
-				for i, value := range pendingTexts {
-					translatedValue, err := translator.Translate(value, targetLang)
-					if err != nil {
-						fmt.Printf("\nError: Failed to translate key '%s' (text: '%s'): %v\n", pendingKeys[i], value, err)
-						result[pendingKeys[i]] = value
-					} else {
-						result[pendingKeys[i]] = translatedValue
-						dict.AddTerm(value, targetLang, translatedValue)
+				// Fallback to batch translation for non-OpenAI translators
+				config := &BatchConfig{
+					BatchSize: batchSize,
+				}
+				batchResults, err := translator.TranslateBatch(pendingTexts, targetLang, config)
+				if err != nil {
+					return nil, fmt.Errorf("batch translation failed: %v", err)
+				}
+
+				// Process results
+				for i, batchResult := range batchResults {
+					if i < len(pendingKeys) {
+						key := pendingKeys[i]
+						if batchResult.IsValid {
+							result[key] = batchResult.Output
+							dict.AddTerm(batchResult.Input, targetLang, batchResult.Output)
+						} else {
+							fmt.Printf("\nError: Failed to translate key '%s' (text: '%s'): %s\n", key, batchResult.Input, batchResult.Error)
+							result[key] = batchResult.Input
+						}
+						count++
+						showProgress(count, total, startTime)
 					}
-					count++
-					showProgress(count, total, startTime)
-					time.Sleep(100 * time.Millisecond)
 				}
 			}
 		}

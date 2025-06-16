@@ -14,10 +14,22 @@ import (
 	"github.com/grtw2116/MinecraftModsLocalizer/pkg/parsers"
 )
 
-type OpenAITranslator struct {
+type APIClient struct {
 	APIKey  string
 	Model   string
 	BaseURL string
+	client  *http.Client
+}
+
+type BatchConfig struct {
+	Keys             []string
+	BatchSize        int
+	ProgressCallback ProgressCallback
+	BatchCallback    BatchResultCallback
+}
+
+type OpenAITranslator struct {
+	client *APIClient
 }
 
 type OpenAIRequest struct {
@@ -44,10 +56,10 @@ type OpenAIError struct {
 	Type    string `json:"type"`
 }
 
-func NewOpenAITranslator() *OpenAITranslator {
+func NewAPIClient() *APIClient {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
-		apiKey = os.Getenv("ANTHROPIC_API_KEY") // For Claude or other compatible APIs
+		apiKey = os.Getenv("ANTHROPIC_API_KEY")
 	}
 
 	baseURL := os.Getenv("OPENAI_BASE_URL")
@@ -57,13 +69,20 @@ func NewOpenAITranslator() *OpenAITranslator {
 
 	model := os.Getenv("OPENAI_MODEL")
 	if model == "" {
-		model = "gpt-4o-mini" // Default to cost-effective model
+		model = "gpt-4o-mini"
 	}
 
-	return &OpenAITranslator{
+	return &APIClient{
 		APIKey:  apiKey,
 		Model:   model,
 		BaseURL: baseURL,
+		client:  &http.Client{Timeout: 60 * time.Second},
+	}
+}
+
+func NewOpenAITranslator() *OpenAITranslator {
+	return &OpenAITranslator{
+		client: NewAPIClient(),
 	}
 }
 
@@ -71,41 +90,31 @@ func (t *OpenAITranslator) Translate(text, targetLang string) (string, error) {
 	return t.TranslateWithExamples(text, targetLang, nil)
 }
 
-func (t *OpenAITranslator) TranslateBatch(texts []string, targetLang string) ([]BatchTranslationResult, error) {
-	return t.TranslateBatchWithSize(texts, targetLang, 10)
+func (t *OpenAITranslator) TranslateBatch(texts []string, targetLang string, config *BatchConfig) ([]BatchTranslationResult, error) {
+	if config == nil {
+		config = &BatchConfig{BatchSize: 10}
+	}
+	if config.BatchSize <= 0 {
+		config.BatchSize = 10
+	}
+	return t.translateBatch(texts, targetLang, config)
 }
 
-func (t *OpenAITranslator) TranslateBatchWithSize(texts []string, targetLang string, batchSize int) ([]BatchTranslationResult, error) {
-	return t.TranslateBatchWithKeys(nil, texts, targetLang, batchSize)
-}
-
-func (t *OpenAITranslator) TranslateBatchWithKeys(keys, texts []string, targetLang string, batchSize int) ([]BatchTranslationResult, error) {
-	return t.TranslateBatchWithKeysAndProgress(keys, texts, targetLang, batchSize, nil)
-}
-
-func (t *OpenAITranslator) TranslateBatchWithKeysAndProgress(keys, texts []string, targetLang string, batchSize int, progressCallback ProgressCallback) ([]BatchTranslationResult, error) {
-	return t.TranslateBatchWithKeysProgressAndCallback(keys, texts, targetLang, batchSize, progressCallback, nil)
-}
-
-func (t *OpenAITranslator) TranslateBatchWithKeysProgressAndCallback(keys, texts []string, targetLang string, batchSize int, progressCallback ProgressCallback, batchCallback BatchResultCallback) ([]BatchTranslationResult, error) {
-	if t.APIKey == "" {
+func (t *OpenAITranslator) translateBatch(texts []string, targetLang string, config *BatchConfig) ([]BatchTranslationResult, error) {
+	if t.client.APIKey == "" {
 		return nil, fmt.Errorf("API key not found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")
 	}
 
-	if batchSize <= 0 {
-		batchSize = 1
-	}
-
-	// If keys are provided, they should match the number of texts
-	if keys != nil && len(keys) != len(texts) {
-		return nil, fmt.Errorf("number of keys (%d) must match number of texts (%d)", len(keys), len(texts))
+	if config.Keys != nil && len(config.Keys) != len(texts) {
+		return nil, fmt.Errorf("number of keys (%d) must match number of texts (%d)", len(config.Keys), len(texts))
 	}
 
 	var results []BatchTranslationResult
 	originalTotalTexts := len(texts)
 
+	keys := config.Keys
 	for len(texts) > 0 {
-		currentBatchSize := batchSize
+		currentBatchSize := config.BatchSize
 		if len(texts) < currentBatchSize {
 			currentBatchSize = len(texts)
 		}
@@ -133,15 +142,13 @@ func (t *OpenAITranslator) TranslateBatchWithKeysProgressAndCallback(keys, texts
 		}
 
 		results = append(results, batchResults...)
-		
-		// Call batch result callback after each batch is completed
-		if batchCallback != nil {
-			batchCallback(batchResults)
+
+		if config.BatchCallback != nil {
+			config.BatchCallback(batchResults)
 		}
-		
-		// Report progress after each batch is completed
-		if progressCallback != nil {
-			progressCallback(len(results), originalTotalTexts)
+
+		if config.ProgressCallback != nil {
+			config.ProgressCallback(len(results), originalTotalTexts)
 		}
 	}
 
@@ -174,15 +181,22 @@ func (t *OpenAITranslator) TranslateBatchWithKeysProgressAndCallback(keys, texts
 }
 
 func (t *OpenAITranslator) translateBatchChunk(keys, texts []string, targetLang string) ([]BatchTranslationResult, error) {
+	prompt := t.buildBatchPrompt(keys, texts, targetLang)
+	response, err := t.client.sendRequest(prompt)
+	if err != nil {
+		return nil, err
+	}
+	return t.parseBatchResponse(keys, texts, response)
+}
+
+func (t *OpenAITranslator) buildBatchPrompt(keys, texts []string, targetLang string) string {
 	var textList strings.Builder
 	var prompt string
-	
+
 	if keys != nil && len(keys) == len(texts) {
-		// Format as key-value pairs
 		for i, text := range texts {
 			textList.WriteString(fmt.Sprintf("%d. \"%s\": \"%s\"\n", i+1, keys[i], text))
 		}
-		
 		prompt = fmt.Sprintf(`Translate the following Minecraft mod key-value pairs from English to %s. Keep translations natural and appropriate for gaming context. Only translate the VALUES (after the colon), keep the KEYS unchanged.
 
 Please respond with the translated key-value pairs in the same numbered format:
@@ -191,11 +205,9 @@ Please respond with the translated key-value pairs in the same numbered format:
 
 Return the translations in the exact same numbered format (1., 2., etc.), with keys unchanged and only values translated.`, parsers.GetLanguageNameForPrompt(targetLang), textList.String())
 	} else {
-		// Fallback to text-only format
 		for i, text := range texts {
 			textList.WriteString(fmt.Sprintf("%d. %s\n", i+1, text))
 		}
-		
 		prompt = fmt.Sprintf(`Translate the following Minecraft mod texts from English to %s. Keep translations natural and appropriate for gaming context.
 
 Please respond with ONLY the translated texts in the same numbered format:
@@ -206,64 +218,7 @@ Return the translations in the exact same numbered format (1., 2., etc.), one pe
 	}
 
 	logger.Debug("Batch translation prompt for %d texts:\n%s", len(texts), prompt)
-
-	reqBody := OpenAIRequest{
-		Model: t.Model,
-		Messages: []Message{
-			{Role: "user", Content: prompt},
-		},
-	}
-
-	jsonData, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", t.BaseURL+"/chat/completions", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+t.APIKey)
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("API request failed: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read API response: %v", err)
-	}
-
-	logger.Debug("API response status: %d, body length: %d", resp.StatusCode, len(body))
-	logger.Debug("Raw API response body: %s", string(body))
-	
-	// Check for non-2xx status codes
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
-	}
-
-	var openaiResp OpenAIResponse
-	if err := json.Unmarshal(body, &openaiResp); err != nil {
-		return nil, fmt.Errorf("failed to parse API response: %v. Response body: %s", err, string(body))
-	}
-
-	if openaiResp.Error != nil {
-		return nil, fmt.Errorf("API error (%s): %s", openaiResp.Error.Type, openaiResp.Error.Message)
-	}
-
-	if len(openaiResp.Choices) == 0 {
-		return nil, fmt.Errorf("no translation received")
-	}
-
-	response := strings.TrimSpace(openaiResp.Choices[0].Message.Content)
-	logger.Debug("Batch translation response:\n%s", response)
-
-	return t.parseBatchResponse(keys, texts, response)
+	return prompt
 }
 
 func (t *OpenAITranslator) parseBatchResponse(keys, inputs []string, response string) ([]BatchTranslationResult, error) {
@@ -280,7 +235,7 @@ func (t *OpenAITranslator) parseBatchResponse(keys, inputs []string, response st
 			numberPrefix := fmt.Sprintf("%d.", i+1)
 			if strings.HasPrefix(line, numberPrefix) {
 				lineContent := strings.TrimSpace(line[len(numberPrefix):])
-				
+
 				// Check if we have keys (key-value format) or just text
 				if keys != nil && len(keys) == len(inputs) {
 					// Parse key-value format: "key": "translated_value"
@@ -328,10 +283,15 @@ func (t *OpenAITranslator) parseBatchResponse(keys, inputs []string, response st
 }
 
 func (t *OpenAITranslator) TranslateWithExamples(text, targetLang string, examples []SimilarityMatch) (string, error) {
-	if t.APIKey == "" {
+	if t.client.APIKey == "" {
 		return "", fmt.Errorf("API key not found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")
 	}
 
+	prompt := t.buildSinglePrompt(text, targetLang, examples)
+	return t.client.sendRequest(prompt)
+}
+
+func (t *OpenAITranslator) buildSinglePrompt(text, targetLang string, examples []SimilarityMatch) string {
 	prompt := fmt.Sprintf(`Translate the following Minecraft mod text from English to %s. Keep the translation natural and appropriate for gaming context.`, parsers.GetLanguageNameForPrompt(targetLang))
 
 	if len(examples) > 0 {
@@ -351,11 +311,13 @@ func (t *OpenAITranslator) TranslateWithExamples(text, targetLang string, exampl
 Text to translate: %s
 
 Only return the translated text, nothing else.`, text)
-
 	logger.Debug("Single translation prompt:\n%s", prompt)
+	return prompt
+}
 
+func (c *APIClient) sendRequest(prompt string) (string, error) {
 	reqBody := OpenAIRequest{
-		Model: t.Model,
+		Model: c.Model,
 		Messages: []Message{
 			{Role: "user", Content: prompt},
 		},
@@ -366,16 +328,15 @@ Only return the translated text, nothing else.`, text)
 		return "", err
 	}
 
-	req, err := http.NewRequest("POST", t.BaseURL+"/chat/completions", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", c.BaseURL+"/chat/completions", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+t.APIKey)
+	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("API request failed: %v", err)
 	}
@@ -387,8 +348,8 @@ Only return the translated text, nothing else.`, text)
 	}
 
 	logger.Debug("API response status: %d, body length: %d", resp.StatusCode, len(body))
-	
-	// Check for non-2xx status codes
+	logger.Debug("Raw API response body: %s", string(body))
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "", fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
 	}
@@ -407,8 +368,6 @@ Only return the translated text, nothing else.`, text)
 	}
 
 	response := strings.TrimSpace(openaiResp.Choices[0].Message.Content)
-	logger.Debug("Single translation response: %s", response)
-
+	logger.Debug("API response: %s", response)
 	return response, nil
 }
-
