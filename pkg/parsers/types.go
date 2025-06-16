@@ -54,7 +54,7 @@ func IsLegacyMinecraftVersion(version string) bool {
 	// Parse version to compare
 	// 1.10.2 and earlier use mixed case (ja_JP)
 	// 1.11 and later use lowercase (ja_jp)
-	
+
 	// Handle common version formats
 	switch version {
 	case "1.7", "1.7.2", "1.7.10":

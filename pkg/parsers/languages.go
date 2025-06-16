@@ -182,7 +182,7 @@ func FormatLanguageCodeForVersion(code, minecraftVersion string) (string, error)
 
 	// Normalize to lowercase first
 	normalizedCode := strings.ToLower(code)
-	
+
 	// For Minecraft 1.10.2 and earlier, use mixed case format
 	if isLegacyVersion(minecraftVersion) {
 		parts := strings.Split(normalizedCode, "_")
@@ -190,7 +190,7 @@ func FormatLanguageCodeForVersion(code, minecraftVersion string) (string, error)
 			return fmt.Sprintf("%s_%s", strings.ToLower(parts[0]), strings.ToUpper(parts[1])), nil
 		}
 	}
-	
+
 	// For Minecraft 1.11+, use lowercase format
 	return normalizedCode, nil
 }

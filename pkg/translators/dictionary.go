@@ -245,7 +245,7 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 					currentCount := count + completed
 					showProgress(currentCount, total, startTime)
 				}
-				
+
 				// Create batch result callback to update dictionary after each batch
 				batchResultCallback := func(batchResults []BatchTranslationResult) {
 					// Save dictionary after each batch completion
@@ -258,7 +258,7 @@ func TranslateDataWithSimilarity(data parsers.TranslationData, translator Transl
 						fmt.Printf("\nWarning: Failed to save dictionary: %v\n", err)
 					}
 				}
-				
+
 				config := &BatchConfig{
 					Keys:             pendingKeys,
 					BatchSize:        batchSize,
